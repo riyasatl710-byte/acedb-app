@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ACEDB - Utils.gs
  * Core utility functions used across all modules.
  */
@@ -192,7 +192,7 @@ function checkAndUpgradeEmployeesHeaders() {
   var lastCol = sheet.getLastColumn();
   if (lastCol === 0) return;
   var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
-  var required = ['LastPaidDate', 'PartialMonth', 'PartialAmount'];
+  var required = ['LastPaidDate', 'PartialMonth', 'PartialAmount', 'AdditionalOffices'];
   var missing = [];
   required.forEach(function(h) {
     if (headers.indexOf(h) === -1) {

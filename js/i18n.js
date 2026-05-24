@@ -1,4 +1,4 @@
-﻿/* ACEDB - i18n.js  Bilingual: English + Malayalam */
+/* ACEDB - i18n.js  Bilingual: English + Malayalam */
 const I18N = {
   en: {
     app_name: 'ACEDB',
@@ -38,7 +38,7 @@ const I18N = {
     expiring_contracts: 'Expiring Contracts',
     district: 'District',
     scheme: 'Scheme',
-    office: 'Office',
+    office: 'Attached Office',
     name: 'Name',
     designation: 'Designation',
     dob: 'Date of Birth',
@@ -171,7 +171,7 @@ const I18N = {
     expiring_contracts: 'കാലാവധി തീരുന്ന കരാറുകള്‍',
     district: 'ജില്ല',
     scheme: 'പദ്ധതി',
-    office: 'ഓഫീസ്',
+    office: 'അറ്റാച്ച് ചെയ്ത ഓഫീസ്',
     name: 'പേര്',
     designation: 'ഉദ്യോഗപ്പേര്',
     dob: 'ജനനതീയതി',

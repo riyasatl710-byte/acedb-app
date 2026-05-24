@@ -24,11 +24,11 @@ async function loadEmployees() {
       <div class="card"><div class="card-body" style="padding:0"><div class="table-wrapper">
         <table class="data-table" id="empTable">
           <thead><tr>
-            <th>ID</th><th>${t('name')}</th><th>${t('designation')}</th><th>${t('district')}</th>
+            <th>ID</th><th>${t('name')}</th><th>${t('designation')}</th><th>${t('office')}</th><th>${t('district')}</th>
             <th>${t('scheme')}</th><th>${t('joining_date')}</th><th>${t('current_salary')}</th>
             <th>${t('status')}</th><th>${t('actions')}</th>
           </tr></thead>
-          <tbody id="empTableBody"><tr><td colspan="9" class="text-center text-muted" style="padding:40px">${t('loading')}</td></tr></tbody>
+          <tbody id="empTableBody"><tr><td colspan="10" class="text-center text-muted" style="padding:40px">${t('loading')}</td></tr></tbody>
         </table>
       </div></div></div>
       <div id="empPagination" class="pagination"></div>
@@ -97,16 +97,20 @@ function filterEmployeeTable() {
   if (!tbody) return;
 
   if (pageData.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted" style="padding:40px"><i class="bi bi-inbox" style="font-size:32px;display:block;margin-bottom:8px"></i>' + t('no_data') + '</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted" style="padding:40px"><i class="bi bi-inbox" style="font-size:32px;display:block;margin-bottom:8px"></i>' + t('no_data') + '</td></tr>';
   } else {
     tbody.innerHTML = pageData.map(e => `<tr class="animate-fade">
       <td><strong>${escapeHtml(e.EmpID)}</strong></td>
       <td>${escapeHtml(e.EmployeeName)}</td>
       <td>${escapeHtml(e.Designation)}</td>
+      <td>
+        ${escapeHtml(e.Office)}
+        ${e.AdditionalOffices ? `<br><small class="text-muted" style="display:block;margin-top:2px;">${escapeHtml(e.AdditionalOffices)}</small>` : ''}
+      </td>
       <td>${escapeHtml(e.District)}</td>
       <td>${escapeHtml(e.Scheme)}</td>
       <td>${formatDateDisplay(e.DateOfFirstJoining)}</td>
-      <td>${formatCurrency(e.CurrentSalary)}</td>
+      <td>${formatCurrency(e.activeRate || e.CurrentSalary)}</td>
       <td>${getStatusBadge(e.Status)}</td>
       <td>
         <div style="display:flex;gap:4px">
@@ -147,7 +151,7 @@ function showEmployeeForm(emp, defaultDistrict) {
     <div class="modal-header"><h3>${isEdit ? t('edit_employee') : t('add_employee')}</h3><button class="modal-close" onclick="hideModal('mainModal')">&times;</button></div>
     <div class="modal-body">
       <div class="form-row">
-        <div class="form-group"><label class="form-label">${t('name')} *</label><input class="form-control" id="empName" value="${escapeHtml(emp?.EmployeeName||'')}"></div>
+        <div class="form-group"><label class="form-label">${t('name')} *</label><input class="form-control" id="empName" value="${escapeHtml(emp?.EmployeeName||'')}" ${isEdit ? 'disabled' : ''}></div>
         <div class="form-group"><label class="form-label">${t('designation')} *</label><input class="form-control" id="empDesig" value="${escapeHtml(emp?.Designation||'')}"></div>
       </div>
       <div class="form-row">
@@ -155,24 +159,28 @@ function showEmployeeForm(emp, defaultDistrict) {
         <div class="form-group"><label class="form-label">${t('office')} *</label><input class="form-control" id="empOffice" value="${escapeHtml(emp?.Office||'')}"></div>
       </div>
       <div class="form-row">
+        <div class="form-group"><label class="form-label">Additional Attached Offices (Optional)</label><input class="form-control" id="empAdditionalOffices" placeholder="e.g. Block Office 1, Block Office 2" value="${escapeHtml(emp?.AdditionalOffices||'')}"></div>
         <div class="form-group"><label class="form-label">${t('scheme')}</label><select class="form-select" id="empScheme"></select></div>
-        <div class="form-group"><label class="form-label">${t('joining_date')} *</label><input type="date" class="form-control" id="empJoining" value="${formatDateInput(emp?.DateOfFirstJoining)}"></div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label class="form-label">${t('dob')}</label><input type="date" class="form-control" id="empDOB" value="${formatDateInput(emp?.DateOfBirth)}"></div>
+        <div class="form-group"><label class="form-label">${t('joining_date')} *</label><input type="date" class="form-control" id="empJoining" value="${formatDateInput(emp?.DateOfFirstJoining)}" ${isEdit ? 'disabled' : ''}></div>
+        <div class="form-group"><label class="form-label">${t('dob')}</label><input type="date" class="form-control" id="empDOB" value="${formatDateInput(emp?.DateOfBirth)}" ${isEdit ? 'disabled' : ''}></div>
+      </div>
+      <div class="form-row">
         <div class="form-group"><label class="form-label">${t('qualification')}</label><input class="form-control" id="empQual" value="${escapeHtml(emp?.Qualification||'')}"></div>
-      </div>
-      <div class="form-row">
         <div class="form-group"><label class="form-label">${t('current_salary')} (₹)</label><input type="number" class="form-control" id="empSalary" value="${emp?.CurrentSalary||''}"></div>
+      </div>
+      <div class="form-row">
         <div class="form-group"><label class="form-label">${t('phone')}</label><input class="form-control" id="empPhone" value="${escapeHtml(emp?.Phone||'')}"></div>
-      </div>
-      <div class="form-row">
         <div class="form-group"><label class="form-label">${t('bank_account')}</label><input class="form-control" id="empBank" value="${escapeHtml(emp?.BankAccount||'')}"></div>
-        <div class="form-group"><label class="form-label">${t('ifsc_code')}</label><input class="form-control" id="empIFSC" value="${escapeHtml(emp?.IFSC||'')}"></div>
       </div>
       <div class="form-row">
+        <div class="form-group"><label class="form-label">${t('ifsc_code')}</label><input class="form-control" id="empIFSC" value="${escapeHtml(emp?.IFSC||'')}"></div>
         <div class="form-group"><label class="form-label">${t('pan_number')}</label><input class="form-control" id="empPAN" value="${escapeHtml(emp?.PAN||'')}"></div>
+      </div>
+      <div class="form-row">
         <div class="form-group"><label class="form-label">${t('aadhaar_last4')}</label><input class="form-control" id="empAadhaar" maxlength="4" value="${escapeHtml(emp?.AadhaarLast4||'')}"></div>
+        <div class="form-group"></div>
       </div>
     </div>
     <div class="modal-footer">
@@ -199,6 +207,7 @@ async function saveEmployee(empId) {
     designation: document.getElementById('empDesig').value,
     district: document.getElementById('empDist').value,
     office: document.getElementById('empOffice').value,
+    additionalOffices: document.getElementById('empAdditionalOffices').value,
     scheme: document.getElementById('empScheme').value,
     dateOfFirstJoining: document.getElementById('empJoining').value,
     dateOfBirth: document.getElementById('empDOB').value,
@@ -242,11 +251,12 @@ async function viewEmployee(empId) {
         <tr><td style="font-weight:600">${t('designation')}</td><td>${escapeHtml(e.Designation)}</td></tr>
         <tr><td style="font-weight:600">${t('district')}</td><td>${escapeHtml(e.District)}</td></tr>
         <tr><td style="font-weight:600">${t('office')}</td><td>${escapeHtml(e.Office)}</td></tr>
+        ${e.AdditionalOffices ? `<tr><td style="font-weight:600">Additional Attached Offices</td><td>${escapeHtml(e.AdditionalOffices)}</td></tr>` : ''}
         <tr><td style="font-weight:600">${t('scheme')}</td><td>${escapeHtml(e.Scheme)}</td></tr>
         <tr><td style="font-weight:600">${t('joining_date')}</td><td>${formatDateDisplay(e.DateOfFirstJoining)}</td></tr>
         <tr><td style="font-weight:600">${t('dob')}</td><td>${formatDateDisplay(e.DateOfBirth)}</td></tr>
         <tr><td style="font-weight:600">${t('qualification')}</td><td>${escapeHtml(e.Qualification)}</td></tr>
-        <tr><td style="font-weight:600">${t('current_salary')}</td><td>${formatCurrency(e.CurrentSalary)}</td></tr>
+        <tr><td style="font-weight:600">${t('current_salary')}</td><td>${formatCurrency(e.activeRate || e.CurrentSalary)}</td></tr>
         <tr><td style="font-weight:600">${t('status')}</td><td>${getStatusBadge(e.Status)}</td></tr>
         <tr><td style="font-weight:600">${t('phone')}</td><td>${escapeHtml(e.Phone)}</td></tr>
         <tr><td style="font-weight:600">${t('service_duration')}</td><td>${svc.years}y ${svc.months}m ${svc.days}d (${svc.totalDays} days)</td></tr>

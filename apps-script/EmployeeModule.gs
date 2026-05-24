@@ -86,6 +86,7 @@ function handleAddEmployee(data, session) {
     BankAccount: sanitize(data.bankAccount || ''),
     IFSC: sanitize(data.ifsc || ''),
     PAN: sanitize(data.pan || ''),
+    AdditionalOffices: sanitize(data.additionalOffices || ''),
     CreatedBy: session.userId,
     CreatedAt: now(),
     UpdatedBy: '',
@@ -111,13 +112,13 @@ function handleEditEmployee(data, session) {
 
   var editableFields = ['Scheme','District','Office','EmployeeName','Designation',
     'DateOfBirth','Qualification','DateOfFirstJoining','CurrentSalary',
-    'Phone','AadhaarLast4','BankAccount','IFSC','PAN'];
+    'Phone','AadhaarLast4','BankAccount','IFSC','PAN','AdditionalOffices'];
   var fieldMap = {
     scheme:'Scheme', district:'District', office:'Office', employeeName:'EmployeeName',
     designation:'Designation', dateOfBirth:'DateOfBirth', qualification:'Qualification',
     dateOfFirstJoining:'DateOfFirstJoining', currentSalary:'CurrentSalary',
     phone:'Phone', aadhaarLast4:'AadhaarLast4', bankAccount:'BankAccount',
-    ifsc:'IFSC', pan:'PAN'
+    ifsc:'IFSC', pan:'PAN', additionalOffices:'AdditionalOffices'
   };
 
   for (var key in fieldMap) {
@@ -196,6 +197,7 @@ function handleGetServiceReport(data, session) {
   if (pc) return pc;
 
   var minYears = parseInt(data.minYears) || 0;
+  var maxYears = (data.maxYears !== undefined && data.maxYears !== '') ? parseInt(data.maxYears) : null;
   var rows = readAllRows('Employees');
   rows = filterByDistrictAccess(session, rows);
 
@@ -204,7 +206,9 @@ function handleGetServiceReport(data, session) {
   var result = [];
   rows.forEach(function(r) {
     var svc = calculateServiceDuration(r.DateOfFirstJoining);
-    if (svc.years >= minYears) {
+    var matchesMin = svc.years >= minYears;
+    var matchesMax = maxYears === null || svc.years <= maxYears;
+    if (matchesMin && matchesMax) {
       var s = serializeRow(r);
       s.serviceDuration = svc;
       result.push(s);
@@ -212,7 +216,7 @@ function handleGetServiceReport(data, session) {
   });
 
   result.sort(function(a, b) { return b.serviceDuration.totalDays - a.serviceDuration.totalDays; });
-  return successResponse(result, result.length + ' employees with ' + minYears + '+ years service');
+  return successResponse(result, result.length + ' employees with service report constraints');
 }
 
 

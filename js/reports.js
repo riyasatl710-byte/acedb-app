@@ -1,4 +1,4 @@
-﻿/* ACEDB - reports.js */
+/* ACEDB - reports.js */
 async function loadReports() {
   const content = document.getElementById('pageContent');
   content.innerHTML = `<div class="animate-slide">
@@ -29,8 +29,11 @@ async function generateReportUI(type) {
 
   if (type === 'serviceExperience') {
     title.textContent = t('service_report');
-    filterBody.innerHTML = `<div class="form-row"><div class="form-group"><label class="form-label">${t('min_experience')}</label><input type="number" class="form-control" id="repMinYears" value="5"></div>
-      <div class="form-group" style="display:flex;align-items:flex-end"><button class="btn btn-primary" onclick="runReport('${type}')">${t('generate')}</button></div></div>`;
+    filterBody.innerHTML = `<div class="form-row">
+      <div class="form-group"><label class="form-label">${t('min_experience')}</label><input type="number" class="form-control" id="repMinYears" value="0"></div>
+      <div class="form-group"><label class="form-label">Maximum Experience (Years)</label><input type="number" class="form-control" id="repMaxYears" placeholder="No Limit"></div>
+      <div class="form-group" style="display:flex;align-items:flex-end"><button class="btn btn-primary" onclick="runReport('${type}')">${t('generate')}</button></div>
+    </div>`;
   } else if (type === 'salaryExpenditure') {
     title.textContent = t('salary_expenditure');
     filterBody.innerHTML = `<div class="form-row"><div class="form-group"><label class="form-label">From Month</label><input type="month" class="form-control" id="repFromMonth"></div>
@@ -48,12 +51,15 @@ async function generateReportUI(type) {
 
 async function runReport(type) {
   const filters = {};
-  if (type === 'serviceExperience') filters.minYears = document.getElementById('repMinYears')?.value || 5;
+  if (type === 'serviceExperience') {
+    filters.minYears = document.getElementById('repMinYears')?.value || 0;
+    filters.maxYears = document.getElementById('repMaxYears')?.value || '';
+  }
   if (type === 'salaryExpenditure') { filters.fromMonth = document.getElementById('repFromMonth')?.value; filters.toMonth = document.getElementById('repToMonth')?.value; }
   if (type === 'leaveReport') filters.year = document.getElementById('repYear')?.value;
 
   let result;
-  if (type === 'serviceExperience') result = await API.getServiceReport(filters.minYears, {});
+  if (type === 'serviceExperience') result = await API.getServiceReport(filters.minYears, { maxYears: filters.maxYears });
   else result = await API.generateReport(type, filters);
 
   const resCard = document.getElementById('reportResults');

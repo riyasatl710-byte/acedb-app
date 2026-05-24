@@ -168,7 +168,7 @@ function showEmployeeForm(emp, defaultDistrict) {
       </div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">${t('qualification')}</label><input class="form-control" id="empQual" value="${escapeHtml(emp?.Qualification||'')}"></div>
-        <div class="form-group"><label class="form-label">${t('current_salary')} (₹)</label><input type="number" class="form-control" id="empSalary" value="${emp?.CurrentSalary||''}"></div>
+        <div class="form-group"><label class="form-label">${t('current_salary')} (₹)</label><input type="number" class="form-control" id="empSalary" value="${emp ? (emp.activeRate || emp.CurrentSalary) : ''}"></div>
       </div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">${t('phone')}</label><input class="form-control" id="empPhone" value="${escapeHtml(emp?.Phone||'')}"></div>

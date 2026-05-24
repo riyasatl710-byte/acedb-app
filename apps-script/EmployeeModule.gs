@@ -275,7 +275,7 @@ function calculatePendingHonorariumForEmp(emp, revisions) {
       }
     }
     if (latestRev) {
-      activeRate = Math.max(activeRate, parseFloat(latestRev.NewAmount) || 0);
+      activeRate = parseFloat(latestRev.NewAmount) || 0;
     }
 
     var monthlyOwed = activeRate;
@@ -334,7 +334,7 @@ function getActiveRateForEmp(emp, revisions) {
     }
   }
   if (latestRev) {
-    activeRate = Math.max(activeRate, parseFloat(latestRev.NewAmount) || 0);
+    activeRate = parseFloat(latestRev.NewAmount) || 0;
   }
   return activeRate;
 }

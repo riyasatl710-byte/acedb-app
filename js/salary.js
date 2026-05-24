@@ -147,7 +147,7 @@ function showUpdateTrackerModal(empId) {
       <div class="form-group">
         <label class="form-label">Last Fully Paid Date *</label>
         <input type="date" class="form-control" id="trackLastPaid" value="${formatDateInput(emp.LastPaidDate)}">
-        <small class="text-muted">All months up to the end of this date's month will be considered fully paid.</small>
+        <small class="text-muted">Only the last day of a month is allowed. Selecting any date will automatically snap to the end of that month.</small>
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -167,6 +167,25 @@ function showUpdateTrackerModal(empId) {
   </div>`;
 
   showModal('mainModal');
+
+  // Snap function helper
+  const snapDateToMonthEnd = (input) => {
+    if (input.value) {
+      const d = new Date(input.value);
+      const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+      input.value = lastDay.toISOString().split('T')[0];
+    }
+  };
+
+  const dateInput = document.getElementById('trackLastPaid');
+  if (dateInput) {
+    // Snap on load if value is present
+    snapDateToMonthEnd(dateInput);
+    // Snap on user change
+    dateInput.addEventListener('change', function() {
+      snapDateToMonthEnd(this);
+    });
+  }
 }
 
 async function saveTrackerStatus(empId) {
@@ -177,6 +196,13 @@ async function saveTrackerStatus(empId) {
   if (!lastPaidDate) {
     showToast('Last fully paid date is required', 'warning');
     return;
+  }
+
+  if (partialMonth) {
+    if (!partialAmount || parseFloat(partialAmount) <= 0) {
+      showToast('Amount paid is mandatory when a partial month is selected.', 'warning');
+      return;
+    }
   }
 
   const result = await API.updateEmployeeHonorariumStatus({

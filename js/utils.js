@@ -55,7 +55,8 @@ function formatDateInput(dateStr) {
 
 function getStatusBadge(status) {
   const map = { Active: 'badge-active', Suspended: 'badge-suspended', Terminated: 'badge-suspended', Paid: 'badge-paid', Pending: 'badge-pending', Held: 'badge-pending', Expired: 'badge-expired', 'Expiring Soon': 'badge-expiring' };
-  return '<span class="badge ' + (map[status] || 'badge-active') + '">' + status + '</span>';
+  const displayStatus = (status === 'Suspended') ? 'Relieved/Disabled' : status;
+  return '<span class="badge ' + (map[status] || 'badge-active') + '">' + displayStatus + '</span>';
 }
 
 function downloadCSV(csv, filename) {

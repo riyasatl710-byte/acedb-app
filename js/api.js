@@ -67,6 +67,7 @@ const API = {
   getSalaryHistory(filters = {}) { return this.call('getSalaryHistory', filters); },
   addSalary(data) { return this.call('addSalary', data); },
   updateSalary(data) { return this.call('updateSalary', data); },
+  updateEmployeeHonorariumStatus(data) { return this.call('updateEmployeeHonorariumStatus', data); },
   getSalaryRevisions(filters = {}) { return this.call('getSalaryRevisions', filters); },
   addSalaryRevision(data) { return this.call('addSalaryRevision', data); },
 

@@ -1,4 +1,4 @@
-﻿/* ACEDB - salary.js */
+/* ACEDB - salary.js */
 
 let allTrackerEmployees = [];
 let allEmolumentsList = [];
@@ -171,9 +171,16 @@ function showUpdateTrackerModal(empId) {
   // Snap function helper
   const snapDateToMonthEnd = (input) => {
     if (input.value) {
-      const d = new Date(input.value);
-      const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-      input.value = lastDay.toISOString().split('T')[0];
+      const parts = input.value.split('-');
+      if (parts.length === 3) {
+        const y = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10);
+        const lastDay = new Date(y, m, 0);
+        const year = lastDay.getFullYear();
+        const month = String(lastDay.getMonth() + 1).padStart(2, '0');
+        const day = String(lastDay.getDate()).padStart(2, '0');
+        input.value = year + '-' + month + '-' + day;
+      }
     }
   };
 

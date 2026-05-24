@@ -1,4 +1,4 @@
-﻿/* ACEDB - utils.js  UI utility functions */
+/* ACEDB - utils.js  UI utility functions */
 
 function showToast(message, type = 'info', duration = 4000) {
   const container = document.getElementById('toastContainer') || createToastContainer();
@@ -41,6 +41,16 @@ function formatNumber(n) {
 
 function formatDateDisplay(dateStr) {
   if (!dateStr) return '-';
+  if (typeof dateStr === 'string') {
+    const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const y = match[1];
+      const m = months[parseInt(match[2], 10) - 1];
+      const day = match[3];
+      return `${day} ${m} ${y}`;
+    }
+  }
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return dateStr;
   return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -48,9 +58,16 @@ function formatDateDisplay(dateStr) {
 
 function formatDateInput(dateStr) {
   if (!dateStr) return '';
+  if (typeof dateStr === 'string') {
+    const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) return match[1];
+  }
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return '';
-  return d.toISOString().split('T')[0];
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 function getStatusBadge(status) {

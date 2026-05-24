@@ -73,7 +73,7 @@ async function runReport(type) {
   } else if (type === 'salaryExpenditure') {
     const d = result.data;
     resBody.innerHTML = `<div class="stats-grid mb-4"><div class="stat-card purple"><div class="stat-value">${formatCurrency(d.grandTotal)}</div><div class="stat-label">Grand Total</div></div>
-      <div class="stat-card amber"><div class="stat-value">${formatCurrency(d.totalBasic)}</div><div class="stat-label">Basic Salary</div></div>
+      <div class="stat-card amber"><div class="stat-value">${formatCurrency(d.totalBasic)}</div><div class="stat-label">${t('basic_salary')}</div></div>
       <div class="stat-card green"><div class="stat-value">${formatCurrency(d.totalMaternity)}</div><div class="stat-label">Maternity</div></div>
       <div class="stat-card blue"><div class="stat-value">${formatNumber(d.recordCount)}</div><div class="stat-label">Records</div></div></div>`;
   } else if (type === 'pendingPayments') {

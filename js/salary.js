@@ -2,7 +2,7 @@
 async function loadSalary() {
   const content = document.getElementById('pageContent');
   content.innerHTML = `<div class="animate-slide">
-    <div class="tabs"><button class="tab-btn active" onclick="switchSalaryTab('records',this)">Salary Records</button><button class="tab-btn" onclick="switchSalaryTab('revisions',this)">Revisions</button></div>
+    <div class="tabs"><button class="tab-btn active" onclick="switchSalaryTab('records',this)">Honorarium Records</button><button class="tab-btn" onclick="switchSalaryTab('revisions',this)">Revisions</button></div>
     <div id="salaryTabContent"></div>
   </div>`;
   loadSalaryRecords();
@@ -25,7 +25,7 @@ async function loadSalaryRecords() {
         <option value="">${t('all_status')}</option><option value="Paid">${t('paid')}</option><option value="Pending">${t('pending')}</option><option value="Held">${t('held')}</option>
       </select>
     </div>
-    ${hasRole('SuperAdmin','DistrictAdmin') ? '<button class="btn btn-primary btn-sm" onclick="showAddSalaryModal()"><i class="bi bi-plus-lg"></i> Add Salary</button>' : ''}
+    ${hasRole('SuperAdmin','DistrictAdmin') ? '<button class="btn btn-primary btn-sm" onclick="showAddSalaryModal()"><i class="bi bi-plus-lg"></i> Add Honorarium</button>' : ''}
   </div>
   <div class="card"><div class="card-body" style="padding:0"><div class="table-wrapper">
     <table class="data-table"><thead><tr>
@@ -61,7 +61,7 @@ async function fetchSalaryRecords() {
 
 function showAddSalaryModal() {
   const modal = document.getElementById('mainModal');
-  modal.innerHTML = `<div class="modal"><div class="modal-header"><h3>Add Salary Record</h3><button class="modal-close" onclick="hideModal('mainModal')">&times;</button></div>
+  modal.innerHTML = `<div class="modal"><div class="modal-header"><h3>Add Honorarium Record</h3><button class="modal-close" onclick="hideModal('mainModal')">&times;</button></div>
     <div class="modal-body">
       <div class="form-group"><label class="form-label">Employee ID *</label><input class="form-control" id="salNewEmpId" placeholder="EMP-0001"></div>
       <div class="form-group"><label class="form-label">${t('month')} *</label><input type="month" class="form-control" id="salNewMonth"></div>
@@ -107,7 +107,7 @@ async function loadSalaryRevisions() {
   const container = document.getElementById('salaryTabContent');
   const result = await API.getSalaryRevisions({});
   let html = `<div class="table-toolbar"><div></div>
-    ${hasRole('SuperAdmin','SectionAdmin','ITAdmin') ? '<button class="btn btn-primary btn-sm" onclick="showAddRevisionModal()"><i class="bi bi-plus-lg"></i> Add Revision</button>' : ''}
+    ${hasRole('SuperAdmin','SectionAdmin','ITAdmin') ? '<button class="btn btn-primary btn-sm" onclick="showAddRevisionModal()"><i class="bi bi-plus-lg"></i> Add Honorarium Revision</button>' : ''}
   </div><div class="card"><div class="card-body" style="padding:0"><div class="table-wrapper"><table class="data-table"><thead><tr>
     <th>ID</th><th>${t('scheme')}</th><th>${t('designation')}</th><th>Old Amount</th><th>New Amount</th><th>Effective From</th><th>GO Number</th>
   </tr></thead><tbody>`;
@@ -122,7 +122,7 @@ async function loadSalaryRevisions() {
 
 function showAddRevisionModal() {
   const modal = document.getElementById('mainModal');
-  modal.innerHTML = `<div class="modal"><div class="modal-header"><h3>Add Salary Revision</h3><button class="modal-close" onclick="hideModal('mainModal')">&times;</button></div>
+  modal.innerHTML = `<div class="modal"><div class="modal-header"><h3>Add Honorarium Revision</h3><button class="modal-close" onclick="hideModal('mainModal')">&times;</button></div>
     <div class="modal-body">
       <div class="form-row"><div class="form-group"><label class="form-label">${t('scheme')} *</label><input class="form-control" id="revScheme"></div>
       <div class="form-group"><label class="form-label">${t('designation')} *</label><input class="form-control" id="revDesig"></div></div>

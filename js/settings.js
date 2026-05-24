@@ -76,7 +76,7 @@ async function loadAudit() {
     <div class="table-toolbar">
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <select class="form-select" style="padding:8px 36px 8px 12px;font-size:13px;min-width:120px" id="auditModFilter" onchange="fetchAudit()">
-          <option value="">All Modules</option><option value="Employee">Employee</option><option value="Salary">Salary</option>
+          <option value="">All Modules</option><option value="Employee">Employee</option><option value="Salary">Honorarium</option>
           <option value="Leave">Leave</option><option value="Contract">Contract</option><option value="User">User</option>
           <option value="Notification">Notification</option><option value="Config">Config</option>
         </select>

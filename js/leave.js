@@ -1,5 +1,16 @@
-﻿/* ACEDB - leave.js */
+/* ACEDB - leave.js */
+let leaveFeatureLocks = {};
+
 async function loadLeave() {
+  const [locksRes] = await Promise.all([
+    API.getFeatureLocks()
+  ]);
+  leaveFeatureLocks = locksRes.success ? locksRes.data : {};
+
+  const user = getCurrentUser();
+  const isSuper = user && user.role === 'SuperAdmin';
+  const canRecord = hasRole('SuperAdmin','DistrictAdmin') && (isSuper || !leaveFeatureLocks.LOCK_LEAVE);
+
   const content = document.getElementById('pageContent');
   content.innerHTML = `<div class="animate-slide">
     <div class="table-toolbar">
@@ -11,7 +22,7 @@ async function loadLeave() {
         </select>
         <button class="btn btn-outline btn-sm" onclick="fetchLeaveData()">View Balance</button>
       </div>
-      ${hasRole('SuperAdmin','DistrictAdmin') ? '<button class="btn btn-primary btn-sm" onclick="showAddLeaveModal()"><i class="bi bi-plus-lg"></i> Record Leave</button>' : ''}
+      ${canRecord ? '<button class="btn btn-primary btn-sm" onclick="showAddLeaveModal()"><i class="bi bi-plus-lg"></i> Record Leave</button>' : (leaveFeatureLocks.LOCK_LEAVE ? '<span class="text-danger" style="font-size:13px"><i class="bi bi-lock-fill"></i> Leave Module Locked</span>' : '')}
     </div>
     <div id="leaveBalanceCards"></div>
     <div class="card"><div class="card-header"><h3>${t('leave')} Records</h3></div>
@@ -83,6 +94,12 @@ async function fetchLeaveData() {
 }
 
 function showAddLeaveModal() {
+  const isSuper = hasRole('SuperAdmin');
+  if (!isSuper && leaveFeatureLocks.LOCK_LEAVE) {
+    showToast('Leave registration is currently locked', 'warning');
+    return;
+  }
+
   const modal = document.getElementById('mainModal');
   modal.innerHTML = `<div class="modal"><div class="modal-header"><h3>Record Leave</h3><button class="modal-close" onclick="hideModal('mainModal')">&times;</button></div>
     <div class="modal-body">

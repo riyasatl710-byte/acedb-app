@@ -1,11 +1,23 @@
-﻿/* ACEDB - contracts.js */
+/* ACEDB - contracts.js */
+let contractFeatureLocks = {};
+
 async function loadContracts() {
+  const [schRes, locksRes] = await Promise.all([
+    API.getSchemes(),
+    API.getFeatureLocks()
+  ]);
+  contractFeatureLocks = locksRes.success ? locksRes.data : {};
+  
+  const user = getCurrentUser();
+  const isSuper = user && user.role === 'SuperAdmin';
+  const canAdd = hasRole('SuperAdmin','SectionAdmin','ITAdmin') && (isSuper || !contractFeatureLocks.LOCK_CONTRACT);
+
   const content = document.getElementById('pageContent');
   content.innerHTML = `<div class="animate-slide">
     <div id="contractAlerts"></div>
     <div class="table-toolbar">
       <div style="display:flex;gap:8px"><select class="form-select" style="padding:8px 36px 8px 12px;font-size:13px" id="conSchemeFilter" onchange="fetchContracts()"><option value="">${t('all_schemes')}</option></select></div>
-      ${hasRole('SuperAdmin','SectionAdmin','ITAdmin') ? '<button class="btn btn-primary btn-sm" onclick="showAddContractModal()"><i class="bi bi-plus-lg"></i> Add Contract/GO</button>' : ''}
+      ${canAdd ? '<button class="btn btn-primary btn-sm" onclick="showAddContractModal()"><i class="bi bi-plus-lg"></i> Add Contract/GO</button>' : (contractFeatureLocks.LOCK_CONTRACT ? '<span class="text-danger" style="font-size:13px"><i class="bi bi-lock-fill"></i> Contract Module Locked</span>' : '')}
     </div>
     <div class="card"><div class="card-body" style="padding:0"><div class="table-wrapper">
       <table class="data-table"><thead><tr>
@@ -15,8 +27,16 @@ async function loadContracts() {
     </div></div></div>
   </div>`;
 
-  const schRes = await API.getSchemes();
-  if (schRes.success) populateSelect('conSchemeFilter', schRes.data, t('all_schemes'));
+  if (schRes.success) {
+    if (getCurrentRole() === 'SectionAdmin') {
+      const myScheme = getCurrentDistrict();
+      populateSelect('conSchemeFilter', [myScheme]);
+      const sel = document.getElementById('conSchemeFilter');
+      if (sel) { sel.value = myScheme; sel.disabled = true; }
+    } else {
+      populateSelect('conSchemeFilter', schRes.data, t('all_schemes'));
+    }
+  }
   fetchContracts();
 }
 
@@ -33,17 +53,27 @@ async function fetchContracts() {
 
   if (!result.success || !result.data.length) { tbody.innerHTML = `<tr><td colspan="10" class="text-center text-muted">${t('no_data')}</td></tr>`; return; }
 
+  const user = getCurrentUser();
+  const isSuper = user && user.role === 'SuperAdmin';
+  const canEdit = hasRole('SuperAdmin','SectionAdmin','ITAdmin') && (isSuper || !contractFeatureLocks.LOCK_CONTRACT);
+
   tbody.innerHTML = result.data.map(r => `<tr>
     <td>${r.ContractID}</td><td>${escapeHtml(r.Scheme)}</td><td>${escapeHtml(r.GONumber)}</td>
     <td><span class="badge badge-role">${r.SanctionType}</span></td>
     <td>${formatDateDisplay(r.StartDate)}</td><td>${formatDateDisplay(r.ExpiryDate)}</td>
     <td>${r.SanctionedPosts}</td><td>${formatCurrency(r.HonorariumAmount)}</td>
     <td>${r.expiryStatus ? getStatusBadge(r.expiryStatus) : '-'}</td>
-    <td>${hasRole('SuperAdmin','SectionAdmin','ITAdmin') ? `<button class="btn btn-ghost btn-sm" onclick="editContractPrompt('${r.ContractID}')"><i class="bi bi-pencil"></i></button>` : ''}</td>
+    <td>${canEdit ? `<button class="btn btn-ghost btn-sm" onclick="editContractPrompt('${r.ContractID}')"><i class="bi bi-pencil"></i></button>` : ''}</td>
   </tr>`).join('');
 }
 
 function showAddContractModal() {
+  const isSuper = hasRole('SuperAdmin');
+  if (!isSuper && contractFeatureLocks.LOCK_CONTRACT) {
+    showToast('Contract/GO registration is currently locked', 'warning');
+    return;
+  }
+
   const modal = document.getElementById('mainModal');
   modal.innerHTML = `<div class="modal"><div class="modal-header"><h3>Add Contract / GO</h3><button class="modal-close" onclick="hideModal('mainModal')">&times;</button></div>
     <div class="modal-body">
@@ -75,6 +105,12 @@ async function saveContract() {
 }
 
 async function editContractPrompt(contractId) {
+  const isSuper = hasRole('SuperAdmin');
+  if (!isSuper && contractFeatureLocks.LOCK_CONTRACT) {
+    showToast('Contract/GO registration is currently locked', 'warning');
+    return;
+  }
+
   const newExpiry = prompt('Update expiry date (YYYY-MM-DD):');
   if (!newExpiry) return;
   const result = await API.editContract({ contractId, expiryDate: newExpiry });

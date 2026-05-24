@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ACEDB - RBAC.gs
  * Role-Based Access Control middleware.
  */
@@ -48,9 +48,18 @@ function canAccessDistrict(session, targetDistrict) {
   return session.role === 'DistrictAdmin' && session.district === targetDistrict;
 }
 
+function canAccessEmployee(session, emp) {
+  if (!session) return false;
+  if (['SuperAdmin','ITAdmin','Viewer'].indexOf(session.role) !== -1) return true;
+  if (session.role === 'DistrictAdmin') return emp.District === session.district;
+  if (session.role === 'SectionAdmin') return emp.Scheme === session.district;
+  return false;
+}
+
 function filterByDistrictAccess(session, rows) {
-  if (['SuperAdmin','ITAdmin','SectionAdmin','Viewer'].indexOf(session.role) !== -1) return rows;
+  if (['SuperAdmin','ITAdmin','Viewer'].indexOf(session.role) !== -1) return rows;
   if (session.role === 'DistrictAdmin') return rows.filter(function(r) { return r.District === session.district; });
+  if (session.role === 'SectionAdmin') return rows.filter(function(r) { return r.Scheme === session.district; });
   return [];
 }
 

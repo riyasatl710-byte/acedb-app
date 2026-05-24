@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ACEDB - EmployeeModule.gs
  */
 
@@ -44,7 +44,7 @@ function handleGetEmployee(data, session) {
 
   var emp = findRow('Employees', 'EmpID', data.empId);
   if (!emp) return errorResponse('Employee not found');
-  if (!canAccessDistrict(session, emp.District)) return errorResponse('Unauthorized: cannot access this district', 403);
+  if (!canAccessEmployee(session, emp)) return errorResponse('Unauthorized: cannot access this employee', 403);
 
   var revisions = readAllRows('Salary_Revisions');
   var result = serializeRow(emp);
@@ -103,8 +103,8 @@ function handleEditEmployee(data, session) {
 
   var emp = findRow('Employees', 'EmpID', data.empId);
   if (!emp) return errorResponse('Employee not found');
-  if (session.role === 'DistrictAdmin' && emp.District !== session.district)
-    return errorResponse('You can only edit employees in your district');
+  if (!canAccessEmployee(session, emp))
+    return errorResponse('Unauthorized: cannot edit this employee');
 
   var oldData = serializeRow(emp);
   var updates = { UpdatedBy: session.userId, UpdatedAt: now() };
@@ -138,8 +138,8 @@ function handleDeleteEmployee(data, session) {
 
   var emp = findRow('Employees', 'EmpID', data.empId);
   if (!emp) return errorResponse('Employee not found');
-  if (session.role === 'DistrictAdmin' && emp.District !== session.district)
-    return errorResponse('You can only delete employees in your district');
+  if (!canAccessEmployee(session, emp))
+    return errorResponse('Unauthorized: cannot delete this employee');
 
   deleteRow_('Employees', emp._rowIndex);
   logAudit(session.userId, 'DELETE', 'Employee', data.empId, 'Employee deleted: ' + emp.EmployeeName, JSON.stringify(serializeRow(emp)), '');
@@ -154,7 +154,7 @@ function handleSuspendEmployee(data, session) {
 
   var emp = findRow('Employees', 'EmpID', data.empId);
   if (!emp) return errorResponse('Employee not found');
-  if (session.role === 'DistrictAdmin' && emp.District !== session.district)
+  if (!canAccessEmployee(session, emp))
     return errorResponse('Unauthorized');
 
   updateRow('Employees', emp._rowIndex, {
@@ -176,7 +176,7 @@ function handleRevokeSuspension(data, session) {
 
   var emp = findRow('Employees', 'EmpID', data.empId);
   if (!emp) return errorResponse('Employee not found');
-  if (session.role === 'DistrictAdmin' && emp.District !== session.district)
+  if (!canAccessEmployee(session, emp))
     return errorResponse('Unauthorized');
 
   updateRow('Employees', emp._rowIndex, {

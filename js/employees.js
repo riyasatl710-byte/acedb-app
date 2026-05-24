@@ -1,4 +1,4 @@
-﻿/* ACEDB - employees.js  Employee management page */
+/* ACEDB - employees.js  Employee management page */
 let allEmployees = [];
 let empDistricts = [];
 let empSchemes = [];
@@ -40,8 +40,28 @@ async function loadEmployees() {
   ]);
 
   if (empRes.success) allEmployees = empRes.data;
-  if (distRes.success) { empDistricts = distRes.data; populateSelect('empDistFilter', distRes.data, t('all_districts')); }
-  if (schRes.success) { empSchemes = schRes.data; populateSelect('empSchemeFilter', schRes.data, t('all_schemes')); }
+  if (distRes.success) {
+    empDistricts = distRes.data;
+    if (getCurrentRole() === 'DistrictAdmin') {
+      const myDist = getCurrentDistrict();
+      populateSelect('empDistFilter', [myDist]);
+      const sel = document.getElementById('empDistFilter');
+      if (sel) { sel.value = myDist; sel.disabled = true; }
+    } else {
+      populateSelect('empDistFilter', distRes.data, t('all_districts'));
+    }
+  }
+  if (schRes.success) {
+    empSchemes = schRes.data;
+    if (getCurrentRole() === 'SectionAdmin') {
+      const myScheme = getCurrentDistrict();
+      populateSelect('empSchemeFilter', [myScheme]);
+      const sel = document.getElementById('empSchemeFilter');
+      if (sel) { sel.value = myScheme; sel.disabled = true; }
+    } else {
+      populateSelect('empSchemeFilter', schRes.data, t('all_schemes'));
+    }
+  }
   filterEmployeeTable();
 }
 

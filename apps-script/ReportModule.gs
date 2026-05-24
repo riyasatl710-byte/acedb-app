@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ACEDB - ReportModule.gs
  */
 
@@ -44,7 +44,7 @@ function handleGetInternalDashboard(data, session) {
 
   // Salary summary for current FY
   var salaries = readAllRows('Salary_History');
-  if (session.role === 'DistrictAdmin') {
+  if (['SuperAdmin','ITAdmin','Viewer'].indexOf(session.role) === -1) {
     var myEmpIds = {};
     employees.forEach(function(e) { myEmpIds[e.EmpID] = true; });
     salaries = salaries.filter(function(r) { return myEmpIds[r.EmpID]; });
@@ -154,10 +154,10 @@ function generateSalaryReport(data, session) {
   if (data.fromMonth) salaries = salaries.filter(function(r) { return r.Month >= data.fromMonth; });
   if (data.toMonth) salaries = salaries.filter(function(r) { return r.Month <= data.toMonth; });
 
-  if (session.role === 'DistrictAdmin') {
+  if (['SuperAdmin','ITAdmin','Viewer'].indexOf(session.role) === -1) {
     var empRows = readAllRows('Employees');
     var myEmpIds = {};
-    empRows.forEach(function(e) { if (e.District === session.district) myEmpIds[e.EmpID] = true; });
+    empRows.forEach(function(e) { if (canAccessEmployee(session, e)) myEmpIds[e.EmpID] = true; });
     salaries = salaries.filter(function(r) { return myEmpIds[r.EmpID]; });
   }
 

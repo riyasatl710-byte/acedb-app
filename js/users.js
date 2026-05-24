@@ -1,4 +1,6 @@
-﻿/* ACEDB - users.js */
+/* ACEDB - users.js */
+let allUsers = [];
+
 async function loadUsers() {
   const content = document.getElementById('pageContent');
   content.innerHTML = `<div class="animate-slide">
@@ -19,6 +21,7 @@ async function fetchUsers() {
   const result = await API.getUsers();
   const tbody = document.getElementById('userTableBody');
   if (!result.success || !result.data.length) { tbody.innerHTML = `<tr><td colspan="9" class="text-center">${t('no_data')}</td></tr>`; return; }
+  allUsers = result.data;
   tbody.innerHTML = result.data.map(u => `<tr>
     <td><strong>${escapeHtml(u.UserID)}</strong></td><td>${escapeHtml(u.FullName)}</td>
     <td><span class="badge badge-role">${u.Role}</span></td><td>${escapeHtml(u.District || '-')}</td>
@@ -51,16 +54,39 @@ function showCreateUserModal() {
     </div>
     <div class="modal-footer"><button class="btn btn-ghost" onclick="hideModal('mainModal')">${t('cancel')}</button><button class="btn btn-primary" onclick="createNewUser()">${t('save')}</button></div>
   </div>`;
-  // Populate districts
-  API.getDistricts().then(res => {
-    if (res.success) { const sel = document.getElementById('newUserDist'); res.data.forEach(d => sel.innerHTML += '<option value="'+d+'">'+d+'</option>'); }
-  });
+  
+  toggleDistrictField();
   showModal('mainModal');
 }
 
-function toggleDistrictField() {
+async function toggleDistrictField() {
   const role = document.getElementById('newUserRole').value;
-  document.getElementById('newUserDistGroup').style.display = role === 'DistrictAdmin' ? 'block' : 'none';
+  const distGroup = document.getElementById('newUserDistGroup');
+  const distLabel = distGroup.querySelector('.form-label');
+  const distSelect = document.getElementById('newUserDist');
+  
+  if (role === 'DistrictAdmin') {
+    distGroup.style.display = 'block';
+    distLabel.textContent = t('district') + ' *';
+    distSelect.innerHTML = '<option value="">Loading...</option>';
+    const res = await API.getDistricts();
+    if (res.success) {
+      distSelect.innerHTML = '';
+      res.data.forEach(d => distSelect.innerHTML += `<option value="${d}">${d}</option>`);
+    }
+  } else if (role === 'SectionAdmin') {
+    distGroup.style.display = 'block';
+    distLabel.textContent = t('scheme') + ' *';
+    distSelect.innerHTML = '<option value="">Loading...</option>';
+    const res = await API.getSchemes();
+    if (res.success) {
+      distSelect.innerHTML = '';
+      res.data.forEach(s => distSelect.innerHTML += `<option value="${s}">${s}</option>`);
+    }
+  } else {
+    distGroup.style.display = 'none';
+    distSelect.innerHTML = '';
+  }
 }
 
 async function createNewUser() {
@@ -75,13 +101,87 @@ async function createNewUser() {
 }
 
 function showEditUserModal(userId) {
-  // Simplified inline edit
-  const newRole = prompt('Enter new role (SuperAdmin/ITAdmin/SectionAdmin/DistrictAdmin/Viewer):');
-  if (!newRole) return;
-  API.editUser({ userId, role: newRole }).then(r => {
-    if (r.success) { showToast('Updated', 'success'); fetchUsers(); }
-    else showToast(r.error, 'error');
+  const u = allUsers.find(user => user.UserID === userId);
+  if (!u) return;
+  const modal = document.getElementById('mainModal');
+  modal.innerHTML = `<div class="modal"><div class="modal-header"><h3>${t('edit_user')}</h3><button class="modal-close" onclick="hideModal('mainModal')">&times;</button></div>
+    <div class="modal-body">
+      <div class="form-row"><div class="form-group"><label class="form-label">${t('user_id')} *</label><input class="form-control" id="editUserId" value="${escapeHtml(u.UserID)}" readonly disabled></div>
+        <div class="form-group"><label class="form-label">${t('full_name')} *</label><input class="form-control" id="editUserName" value="${escapeHtml(u.FullName)}"></div></div>
+      <div class="form-row"><div class="form-group"><label class="form-label">${t('role')} *</label>
+        <select class="form-select" id="editUserRole" onchange="toggleEditDistrictField()">
+          <option value="DistrictAdmin" ${u.Role==='DistrictAdmin'?'selected':''}>District Admin</option>
+          <option value="SectionAdmin" ${u.Role==='SectionAdmin'?'selected':''}>Section Admin</option>
+          <option value="ITAdmin" ${u.Role==='ITAdmin'?'selected':''}>IT Admin</option>
+          <option value="Viewer" ${u.Role==='Viewer'?'selected':''}>Viewer</option>
+          <option value="SuperAdmin" ${u.Role==='SuperAdmin'?'selected':''}>Super Admin</option>
+        </select></div>
+        <div class="form-group" id="editUserDistGroup"><label class="form-label">${t('district')} *</label><select class="form-select" id="editUserDist"></select></div></div>
+      <div class="form-row"><div class="form-group"><label class="form-label">${t('email')}</label><input type="email" class="form-control" id="editUserEmail" value="${escapeHtml(u.Email||'')}"></div>
+        <div class="form-group"><label class="form-label">${t('phone')}</label><input class="form-control" id="editUserPhone" value="${escapeHtml(u.Phone||'')}"></div></div>
+      <div class="form-row"><div class="form-group"><label class="form-label">Status</label>
+        <select class="form-select" id="editUserActive">
+          <option value="true" ${u.IsActive===true || u.IsActive==='TRUE'?'selected':''}>Active</option>
+          <option value="false" ${u.IsActive===false || u.IsActive==='FALSE'?'selected':''}>Inactive</option>
+        </select></div></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="hideModal('mainModal')">${t('cancel')}</button><button class="btn btn-primary" onclick="saveUserEdit()">${t('save')}</button></div>
+  </div>`;
+  
+  toggleEditDistrictField(u.District);
+  showModal('mainModal');
+}
+
+async function toggleEditDistrictField(selectedValue = '') {
+  const role = document.getElementById('editUserRole').value;
+  const distGroup = document.getElementById('editUserDistGroup');
+  const distLabel = distGroup.querySelector('.form-label');
+  const distSelect = document.getElementById('editUserDist');
+  
+  if (role === 'DistrictAdmin') {
+    distGroup.style.display = 'block';
+    distLabel.textContent = t('district') + ' *';
+    distSelect.innerHTML = '<option value="">Loading...</option>';
+    const res = await API.getDistricts();
+    if (res.success) {
+      distSelect.innerHTML = '';
+      res.data.forEach(d => {
+        const sel = d === selectedValue ? 'selected' : '';
+        distSelect.innerHTML += `<option value="${d}" ${sel}>${d}</option>`;
+      });
+    }
+  } else if (role === 'SectionAdmin') {
+    distGroup.style.display = 'block';
+    distLabel.textContent = t('scheme') + ' *';
+    distSelect.innerHTML = '<option value="">Loading...</option>';
+    const res = await API.getSchemes();
+    if (res.success) {
+      distSelect.innerHTML = '';
+      res.data.forEach(s => {
+        const sel = s === selectedValue ? 'selected' : '';
+        distSelect.innerHTML += `<option value="${s}" ${sel}>${s}</option>`;
+      });
+    }
+  } else {
+    distGroup.style.display = 'none';
+    distSelect.innerHTML = '';
+  }
+}
+
+async function saveUserEdit() {
+  const userId = document.getElementById('editUserId').value;
+  const fullName = document.getElementById('editUserName').value;
+  const role = document.getElementById('editUserRole').value;
+  const district = document.getElementById('editUserDist')?.value || '';
+  const email = document.getElementById('editUserEmail').value;
+  const phone = document.getElementById('editUserPhone').value;
+  const isActive = document.getElementById('editUserActive').value === 'true';
+
+  const result = await API.editUser({
+    userId, fullName, role, district, email, phone, isActive
   });
+  if (result.success) { showToast('User updated successfully', 'success'); hideModal('mainModal'); fetchUsers(); }
+  else showToast(result.error, 'error');
 }
 
 async function resetUserPwd(userId) {

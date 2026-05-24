@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ACEDB - ContractModule.gs
  */
 
@@ -7,6 +7,9 @@ function handleGetContracts(data, session) {
   if (pc) return pc;
 
   var rows = readAllRows('Contracts');
+  if (session.role === 'SectionAdmin') {
+    data.scheme = session.district;
+  }
   if (data.scheme) rows = rows.filter(function(r) { return r.Scheme === data.scheme; });
   if (data.sanctionType) rows = rows.filter(function(r) { return r.SanctionType === data.sanctionType; });
 
@@ -33,6 +36,16 @@ function handleAddContract(data, session) {
 
   var missing = validateRequired(data, ['scheme', 'goNumber', 'startDate', 'expiryDate']);
   if (missing) return errorResponse('Missing required field: ' + missing);
+
+  var isSuper = (session.role === 'SuperAdmin');
+  var lockContract = String(getConfigValue('LOCK_CONTRACT')).toLowerCase() === 'true';
+  if (lockContract && !isSuper) {
+    return errorResponse('Contract/GO entry is currently locked.');
+  }
+
+  if (session.role === 'SectionAdmin' && data.scheme !== session.district) {
+    return errorResponse('You can only add contracts for your scheme');
+  }
 
   var contractId = generateId('CON');
   appendRow_('Contracts', {
@@ -61,6 +74,16 @@ function handleEditContract(data, session) {
 
   var rec = findRow('Contracts', 'ContractID', data.contractId);
   if (!rec) return errorResponse('Contract not found');
+
+  var isSuper = (session.role === 'SuperAdmin');
+  var lockContract = String(getConfigValue('LOCK_CONTRACT')).toLowerCase() === 'true';
+  if (lockContract && !isSuper) {
+    return errorResponse('Contract/GO entry is currently locked.');
+  }
+
+  if (session.role === 'SectionAdmin' && rec.Scheme !== session.district) {
+    return errorResponse('You can only edit contracts for your scheme');
+  }
 
   var updates = {};
   if (data.scheme) updates.Scheme = sanitize(data.scheme);

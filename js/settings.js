@@ -55,6 +55,10 @@ async function loadLocksConfig() {
   const lockFestival = String(config.LOCK_FESTIVAL_ALLOWANCE || 'false').toLowerCase() === 'true';
   const lockMaternity = String(config.LOCK_MATERNITY_PAY || 'false').toLowerCase() === 'true';
   const lockEL = String(config.LOCK_EL_SURRENDER || 'false').toLowerCase() === 'true';
+  const lockEmoluments = String(config.LOCK_EMOLUMENTS || 'false').toLowerCase() === 'true';
+  const lockLeave = String(config.LOCK_LEAVE || 'false').toLowerCase() === 'true';
+  const lockContract = String(config.LOCK_CONTRACT || 'false').toLowerCase() === 'true';
+  const lockFinancialYear = String(config.LOCK_FINANCIAL_YEAR || 'false').toLowerCase() === 'true';
   
   container.innerHTML = `
     <p class="text-muted" style="margin-bottom:20px; font-size:13px;">Configure lock status for data entry facilities. When locked, non-Superadmin roles (e.g. District Admins) will be restricted from adding or updating records. Superadmins always have full access.</p>
@@ -62,15 +66,31 @@ async function loadLocksConfig() {
       <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--bg-light);border-radius:6px">
         <div>
           <strong>Lock Honorarium updates</strong><br>
-          <small class="text-muted">Blocks updating Last Paid Date and Partial Month/Amount</small>
+          <small class="text-muted">Prevents updating Last Paid Date and Partial Month/Amount</small>
         </div>
         <input type="checkbox" id="lock_honorarium" style="width:20px;height:20px;cursor:pointer" ${lockHonorarium ? 'checked' : ''}>
       </div>
       
       <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--bg-light);border-radius:6px">
         <div>
+          <strong>Lock Emoluments page</strong><br>
+          <small class="text-muted">Prevents adding or modifying any emolument records</small>
+        </div>
+        <input type="checkbox" id="lock_emoluments" style="width:20px;height:20px;cursor:pointer" ${lockEmoluments ? 'checked' : ''}>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--bg-light);border-radius:6px">
+        <div>
+          <strong>Lock Financial Year selection</strong><br>
+          <small class="text-muted">Prevents changing the default Financial Year in Emoluments popup</small>
+        </div>
+        <input type="checkbox" id="lock_financial_year" style="width:20px;height:20px;cursor:pointer" ${lockFinancialYear ? 'checked' : ''}>
+      </div>
+      
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--bg-light);border-radius:6px">
+        <div>
           <strong>Lock Festival Allowance entry</strong><br>
-          <small class="text-muted">Blocks inputting Festival Allowance in other emoluments</small>
+          <small class="text-muted">Prevents inputting Festival Allowance in other emoluments</small>
         </div>
         <input type="checkbox" id="lock_festival" style="width:20px;height:20px;cursor:pointer" ${lockFestival ? 'checked' : ''}>
       </div>
@@ -78,7 +98,7 @@ async function loadLocksConfig() {
       <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--bg-light);border-radius:6px">
         <div>
           <strong>Lock Maternity Pay entry</strong><br>
-          <small class="text-muted">Blocks inputting Maternity Pay in other emoluments</small>
+          <small class="text-muted">Prevents inputting Maternity Pay in other emoluments</small>
         </div>
         <input type="checkbox" id="lock_maternity" style="width:20px;height:20px;cursor:pointer" ${lockMaternity ? 'checked' : ''}>
       </div>
@@ -86,9 +106,25 @@ async function loadLocksConfig() {
       <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--bg-light);border-radius:6px">
         <div>
           <strong>Lock EL Surrender entry</strong><br>
-          <small class="text-muted">Blocks inputting EL Surrender in other emoluments</small>
+          <small class="text-muted">Prevents inputting EL Surrender in other emoluments</small>
         </div>
         <input type="checkbox" id="lock_el" style="width:20px;height:20px;cursor:pointer" ${lockEL ? 'checked' : ''}>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--bg-light);border-radius:6px">
+        <div>
+          <strong>Lock Leave module</strong><br>
+          <small class="text-muted">Prevents registering new leaves or editing leave records</small>
+        </div>
+        <input type="checkbox" id="lock_leave" style="width:20px;height:20px;cursor:pointer" ${lockLeave ? 'checked' : ''}>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--bg-light);border-radius:6px">
+        <div>
+          <strong>Lock Contract module</strong><br>
+          <small class="text-muted">Prevents adding or modifying Contract/GO records</small>
+        </div>
+        <input type="checkbox" id="lock_contract" style="width:20px;height:20px;cursor:pointer" ${lockContract ? 'checked' : ''}>
       </div>
       
       <button class="btn btn-primary" onclick="saveFeatureLocks()"><i class="bi bi-save"></i> Save Lock Settings</button>
@@ -101,6 +137,10 @@ async function saveFeatureLocks() {
   const lockFestival = document.getElementById('lock_festival').checked ? 'true' : 'false';
   const lockMaternity = document.getElementById('lock_maternity').checked ? 'true' : 'false';
   const lockEL = document.getElementById('lock_el').checked ? 'true' : 'false';
+  const lockEmoluments = document.getElementById('lock_emoluments').checked ? 'true' : 'false';
+  const lockLeave = document.getElementById('lock_leave').checked ? 'true' : 'false';
+  const lockContract = document.getElementById('lock_contract').checked ? 'true' : 'false';
+  const lockFinancialYear = document.getElementById('lock_financial_year').checked ? 'true' : 'false';
   
   showLoading(true);
   try {
@@ -108,7 +148,11 @@ async function saveFeatureLocks() {
       API.updateConfig('LOCK_HONORARIUM', lockHonorarium),
       API.updateConfig('LOCK_FESTIVAL_ALLOWANCE', lockFestival),
       API.updateConfig('LOCK_MATERNITY_PAY', lockMaternity),
-      API.updateConfig('LOCK_EL_SURRENDER', lockEL)
+      API.updateConfig('LOCK_EL_SURRENDER', lockEL),
+      API.updateConfig('LOCK_EMOLUMENTS', lockEmoluments),
+      API.updateConfig('LOCK_LEAVE', lockLeave),
+      API.updateConfig('LOCK_CONTRACT', lockContract),
+      API.updateConfig('LOCK_FINANCIAL_YEAR', lockFinancialYear)
     ]);
     showToast('Lock settings saved successfully', 'success');
     loadLocksConfig();

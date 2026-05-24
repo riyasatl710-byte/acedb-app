@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ACEDB - SalaryModule.gs
  */
 
@@ -11,11 +11,11 @@ function handleGetSalaryHistory(data, session) {
   if (data.month) rows = rows.filter(function(r) { return r.Month === data.month; });
   if (data.status) rows = rows.filter(function(r) { return r.PaymentStatus === data.status; });
 
-  // District filtering via employee lookup
-  if (session.role === 'DistrictAdmin') {
+  // Scope filtering via employee lookup
+  if (['SuperAdmin','ITAdmin','Viewer'].indexOf(session.role) === -1) {
     var empRows = readAllRows('Employees');
     var myEmpIds = {};
-    empRows.forEach(function(e) { if (e.District === session.district) myEmpIds[e.EmpID] = true; });
+    empRows.forEach(function(e) { if (canAccessEmployee(session, e)) myEmpIds[e.EmpID] = true; });
     rows = rows.filter(function(r) { return myEmpIds[r.EmpID]; });
   }
 
@@ -33,12 +33,15 @@ function handleAddSalary(data, session) {
   // Check employee exists and access
   var emp = findRow('Employees', 'EmpID', data.empId);
   if (!emp) return errorResponse('Employee not found');
-  if (session.role === 'DistrictAdmin' && emp.District !== session.district)
+  if (!canAccessEmployee(session, emp))
     return errorResponse('Unauthorized');
   if (emp.Status === 'Suspended') return errorResponse('Employee is suspended from payment');
 
   var isSuper = (session.role === 'SuperAdmin');
   if (!isSuper) {
+    var lockEmoluments = String(getConfigValue('LOCK_EMOLUMENTS')).toLowerCase() === 'true';
+    if (lockEmoluments) return errorResponse('Other Emoluments updates are currently locked.');
+
     var lockFestival = String(getConfigValue('LOCK_FESTIVAL_ALLOWANCE')).toLowerCase() === 'true';
     var lockMaternity = String(getConfigValue('LOCK_MATERNITY_PAY')).toLowerCase() === 'true';
     var lockEL = String(getConfigValue('LOCK_EL_SURRENDER')).toLowerCase() === 'true';
@@ -87,6 +90,15 @@ function handleUpdateSalary(data, session) {
 
   var rec = findRow('Salary_History', 'RecordID', data.recordId);
   if (!rec) return errorResponse('Honorarium record not found');
+
+  var emp = findRow('Employees', 'EmpID', rec.EmpID);
+  if (!emp || !canAccessEmployee(session, emp)) return errorResponse('Unauthorized');
+
+  var isSuper = (session.role === 'SuperAdmin');
+  if (!isSuper) {
+    var lockEmoluments = String(getConfigValue('LOCK_EMOLUMENTS')).toLowerCase() === 'true';
+    if (lockEmoluments) return errorResponse('Other Emoluments updates are currently locked.');
+  }
 
   var updates = {};
   if (data.basicSalary !== undefined) updates.BasicSalary = parseFloat(data.basicSalary) || 0;
@@ -151,8 +163,8 @@ function handleUpdateEmployeeHonorariumStatus(data, session) {
   var emp = findRow('Employees', 'EmpID', data.empId);
   if (!emp) return errorResponse('Employee not found');
 
-  if (session.role === 'DistrictAdmin' && emp.District !== session.district) {
-    return errorResponse('Unauthorized: cannot edit employee in this district.');
+  if (!canAccessEmployee(session, emp)) {
+    return errorResponse('Unauthorized: cannot edit employee.');
   }
 
   var isSuper = (session.role === 'SuperAdmin');

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ACEDB - LeaveModule.gs
  */
 
@@ -11,10 +11,10 @@ function handleGetLeaveRecords(data, session) {
   if (data.year) rows = rows.filter(function(r) { return String(r.Year) === String(data.year); });
   if (data.leaveType) rows = rows.filter(function(r) { return r.LeaveType === data.leaveType; });
 
-  if (session.role === 'DistrictAdmin') {
+  if (['SuperAdmin','ITAdmin','Viewer'].indexOf(session.role) === -1) {
     var empRows = readAllRows('Employees');
     var myEmpIds = {};
-    empRows.forEach(function(e) { if (e.District === session.district) myEmpIds[e.EmpID] = true; });
+    empRows.forEach(function(e) { if (canAccessEmployee(session, e)) myEmpIds[e.EmpID] = true; });
     rows = rows.filter(function(r) { return myEmpIds[r.EmpID]; });
   }
 
@@ -32,8 +32,14 @@ function handleAddLeave(data, session) {
 
   var emp = findRow('Employees', 'EmpID', data.empId);
   if (!emp) return errorResponse('Employee not found');
-  if (session.role === 'DistrictAdmin' && emp.District !== session.district)
+  if (!canAccessEmployee(session, emp))
     return errorResponse('Unauthorized');
+
+  var isSuper = (session.role === 'SuperAdmin');
+  var lockLeave = String(getConfigValue('LOCK_LEAVE')).toLowerCase() === 'true';
+  if (lockLeave && !isSuper) {
+    return errorResponse('Leave registration is currently locked.');
+  }
 
   // Calculate balance
   var yearlyQuota = data.leaveType === 'CL' 
@@ -80,6 +86,15 @@ function handleEditLeave(data, session) {
   var rec = findRow('Leave_Records', 'LeaveID', data.leaveId);
   if (!rec) return errorResponse('Leave record not found');
 
+  var emp = findRow('Employees', 'EmpID', rec.EmpID);
+  if (!emp || !canAccessEmployee(session, emp)) return errorResponse('Unauthorized');
+
+  var isSuper = (session.role === 'SuperAdmin');
+  var lockLeave = String(getConfigValue('LOCK_LEAVE')).toLowerCase() === 'true';
+  if (lockLeave && !isSuper) {
+    return errorResponse('Leave registration is currently locked.');
+  }
+
   var updates = {};
   if (data.daysAvailed !== undefined) updates.DaysAvailed = parseFloat(data.daysAvailed);
   if (data.fromDate) updates.FromDate = data.fromDate;
@@ -96,6 +111,10 @@ function handleGetLeaveBalance(data, session) {
   var pc = checkPermission(session, 'leave.view');
   if (pc) return pc;
   if (!data.empId) return errorResponse('Employee ID is required');
+
+  var emp = findRow('Employees', 'EmpID', data.empId);
+  if (!emp) return errorResponse('Employee not found');
+  if (!canAccessEmployee(session, emp)) return errorResponse('Unauthorized');
 
   var year = data.year || new Date().getFullYear();
   var clQuota = parseInt(getConfigValue('CL_PER_YEAR')) || 12;
@@ -129,6 +148,10 @@ function handleGetLeaveMonthly(data, session) {
   var pc = checkPermission(session, 'leave.view');
   if (pc) return pc;
   if (!data.empId || !data.year) return errorResponse('Employee ID and Year required');
+
+  var emp = findRow('Employees', 'EmpID', data.empId);
+  if (!emp) return errorResponse('Employee not found');
+  if (!canAccessEmployee(session, emp)) return errorResponse('Unauthorized');
 
   var records = readAllRows('Leave_Records').filter(function(r) {
     return r.EmpID === data.empId && String(r.Year) === String(data.year);

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ACEDB - ConfigModule.gs
  */
 
@@ -89,7 +89,10 @@ function handleGetFeatureLocks(data, session) {
     LOCK_HONORARIUM: String(getConfigValue('LOCK_HONORARIUM')).toLowerCase() === 'true',
     LOCK_MATERNITY_PAY: String(getConfigValue('LOCK_MATERNITY_PAY')).toLowerCase() === 'true',
     LOCK_FESTIVAL_ALLOWANCE: String(getConfigValue('LOCK_FESTIVAL_ALLOWANCE')).toLowerCase() === 'true',
-    LOCK_EL_SURRENDER: String(getConfigValue('LOCK_EL_SURRENDER')).toLowerCase() === 'true'
+    LOCK_EL_SURRENDER: String(getConfigValue('LOCK_EL_SURRENDER')).toLowerCase() === 'true',
+    LOCK_EMOLUMENTS: String(getConfigValue('LOCK_EMOLUMENTS')).toLowerCase() === 'true',
+    LOCK_LEAVE: String(getConfigValue('LOCK_LEAVE')).toLowerCase() === 'true',
+    LOCK_CONTRACT: String(getConfigValue('LOCK_CONTRACT')).toLowerCase() === 'true'
   };
   return successResponse(locks, 'Feature locks retrieved');
 }

@@ -78,8 +78,26 @@ async function loadHonorariumTracker() {
 
   salaryFeatureLocks = (locksRes.success) ? locksRes.data : {};
 
-  if (distRes.success) populateSelect('trackDistFilter', distRes.data, t('all_districts'));
-  if (schRes.success) populateSelect('trackSchemeFilter', schRes.data, t('all_schemes'));
+  if (distRes.success) {
+    if (getCurrentRole() === 'DistrictAdmin') {
+      const myDist = getCurrentDistrict();
+      populateSelect('trackDistFilter', [myDist]);
+      const sel = document.getElementById('trackDistFilter');
+      if (sel) { sel.value = myDist; sel.disabled = true; }
+    } else {
+      populateSelect('trackDistFilter', distRes.data, t('all_districts'));
+    }
+  }
+  if (schRes.success) {
+    if (getCurrentRole() === 'SectionAdmin') {
+      const myScheme = getCurrentDistrict();
+      populateSelect('trackSchemeFilter', [myScheme]);
+      const sel = document.getElementById('trackSchemeFilter');
+      if (sel) { sel.value = myScheme; sel.disabled = true; }
+    } else {
+      populateSelect('trackSchemeFilter', schRes.data, t('all_schemes'));
+    }
+  }
 
   if (empRes.success) {
     allTrackerEmployees = empRes.data;
@@ -251,7 +269,7 @@ async function loadOtherEmoluments() {
     `${currentYear+1}-${String(currentYear+2).slice(2)}`
   ];
 
-  const allEmolumentsLocked = salaryFeatureLocks.LOCK_MATERNITY_PAY && salaryFeatureLocks.LOCK_FESTIVAL_ALLOWANCE && salaryFeatureLocks.LOCK_EL_SURRENDER;
+  const allEmolumentsLocked = salaryFeatureLocks.LOCK_EMOLUMENTS || (salaryFeatureLocks.LOCK_MATERNITY_PAY && salaryFeatureLocks.LOCK_FESTIVAL_ALLOWANCE && salaryFeatureLocks.LOCK_EL_SURRENDER);
   const canAdd = hasRole('SuperAdmin') || (hasRole('DistrictAdmin') && !allEmolumentsLocked);
 
   container.innerHTML = `<div class="table-toolbar">
@@ -339,6 +357,13 @@ async function fetchEmolumentRecords() {
 }
 
 function showAddEmolumentModal() {
+  const isSuper = hasRole('SuperAdmin');
+  const emolLocked = !isSuper && salaryFeatureLocks.LOCK_EMOLUMENTS;
+  if (emolLocked) {
+    showToast('Emolument entry is locked', 'warning');
+    return;
+  }
+
   const currentYear = new Date().getFullYear();
   const fyOptions = [
     `${currentYear-2}-${String(currentYear-1).slice(2)}`,
@@ -350,10 +375,21 @@ function showAddEmolumentModal() {
   const fyYear = d.getMonth() < 3 ? d.getFullYear() - 1 : d.getFullYear();
   const currentFY = `${fyYear}-${String(fyYear+1).slice(2)}`;
 
-  const isSuper = hasRole('SuperAdmin');
-  const festDisabled = !isSuper && salaryFeatureLocks.LOCK_FESTIVAL_ALLOWANCE ? 'disabled' : '';
-  const matDisabled = !isSuper && salaryFeatureLocks.LOCK_MATERNITY_PAY ? 'disabled' : '';
-  const elDisabled = !isSuper && salaryFeatureLocks.LOCK_EL_SURRENDER ? 'disabled' : '';
+  const festDisabled = !isSuper && (salaryFeatureLocks.LOCK_FESTIVAL_ALLOWANCE || salaryFeatureLocks.LOCK_EMOLUMENTS) ? 'disabled' : '';
+  const matDisabled = !isSuper && (salaryFeatureLocks.LOCK_MATERNITY_PAY || salaryFeatureLocks.LOCK_EMOLUMENTS) ? 'disabled' : '';
+  const elDisabled = !isSuper && (salaryFeatureLocks.LOCK_EL_SURRENDER || salaryFeatureLocks.LOCK_EMOLUMENTS) ? 'disabled' : '';
+  const fyDisabled = !isSuper && salaryFeatureLocks.LOCK_FINANCIAL_YEAR ? 'disabled' : '';
+
+  // Filter active employees based on role-based scope access
+  let visibleEmps = allTrackerEmployees;
+  if (getCurrentRole() === 'DistrictAdmin') {
+    const myDist = getCurrentDistrict();
+    visibleEmps = allTrackerEmployees.filter(e => e.District === myDist);
+  } else if (getCurrentRole() === 'SectionAdmin') {
+    const myScheme = getCurrentDistrict();
+    visibleEmps = allTrackerEmployees.filter(e => e.Scheme === myScheme);
+  }
+  visibleEmps.sort((a, b) => (a.EmployeeName || '').localeCompare(b.EmployeeName || ''));
 
   const modal = document.getElementById('mainModal');
   modal.innerHTML = `<div class="modal">
@@ -363,12 +399,15 @@ function showAddEmolumentModal() {
     </div>
     <div class="modal-body">
       <div class="form-group">
-        <label class="form-label">Employee ID *</label>
-        <input class="form-control" id="emolNewEmpId" placeholder="EMP-0001">
+        <label class="form-label">Employee *</label>
+        <select class="form-select" id="emolNewEmpId">
+          <option value="">-- Select Employee --</option>
+          ${visibleEmps.map(e => `<option value="${e.EmpID}">${escapeHtml(e.EmployeeName)} (${e.EmpID})</option>`).join('')}
+        </select>
       </div>
       <div class="form-group">
         <label class="form-label">Financial Year *</label>
-        <select class="form-select" id="emolNewMonth">
+        <select class="form-select" id="emolNewMonth" ${fyDisabled}>
           ${fyOptions.map(fy => `<option value="${fy}" ${fy === currentFY ? 'selected' : ''}>${fy}</option>`).join('')}
         </select>
       </div>
@@ -414,7 +453,7 @@ async function saveEmolument() {
   const data = {
     empId: document.getElementById('emolNewEmpId').value.trim(),
     month: document.getElementById('emolNewMonth').value,
-    basicSalary: 0, // Since regular salary is tracked via Tracker, we set basic to 0 for other emoluments
+    basicSalary: 0,
     maternityPay: document.getElementById('emolNewMaternity').value,
     festivalAllowance: document.getElementById('emolNewFestival').value,
     elSurrender: document.getElementById('emolNewEL').value,
@@ -423,7 +462,7 @@ async function saveEmolument() {
   };
 
   if (!data.empId || !data.month) {
-    showToast('Employee ID and Financial Year are required', 'warning');
+    showToast('Employee Selection and Financial Year are required', 'warning');
     return;
   }
 
@@ -438,10 +477,15 @@ async function saveEmolument() {
 }
 
 async function showEditEmolumentModal(recordId) {
+  const isSuper = hasRole('SuperAdmin');
+  if (!isSuper && salaryFeatureLocks.LOCK_EMOLUMENTS) {
+    showToast('Emolument entry is locked', 'warning');
+    return;
+  }
+
   const newStatus = prompt('Update payment status (Paid/Pending/Held):');
   if (!newStatus) return;
   
-  // Accept standard casing
   const formattedStatus = newStatus.charAt(0).toUpperCase() + newStatus.slice(1).toLowerCase();
   if (['Paid', 'Pending', 'Held'].indexOf(formattedStatus) === -1) {
     showToast('Invalid status. Use Paid, Pending, or Held.', 'warning');

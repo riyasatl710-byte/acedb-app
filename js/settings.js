@@ -58,7 +58,15 @@ async function loadLocksConfig() {
   const lockEmoluments = String(config.LOCK_EMOLUMENTS || 'false').toLowerCase() === 'true';
   const lockLeave = String(config.LOCK_LEAVE || 'false').toLowerCase() === 'true';
   const lockContract = String(config.LOCK_CONTRACT || 'false').toLowerCase() === 'true';
-  const lockFinancialYear = String(config.LOCK_FINANCIAL_YEAR || 'false').toLowerCase() === 'true';
+  
+  const currentYear = new Date().getFullYear();
+  const fyOptions = [
+    `${currentYear-2}-${String(currentYear-1).slice(2)}`,
+    `${currentYear-1}-${String(currentYear).slice(2)}`,
+    `${currentYear}-${String(currentYear+1).slice(2)}`,
+    `${currentYear+1}-${String(currentYear+2).slice(2)}`
+  ];
+  const lockedYears = (config.LOCKED_FINANCIAL_YEARS || '').split(',').map(s => s.trim()).filter(Boolean);
   
   container.innerHTML = `
     <p class="text-muted" style="margin-bottom:20px; font-size:13px;">Configure lock status for data entry facilities. When locked, non-Superadmin roles (e.g. District Admins) will be restricted from adding or updating records. Superadmins always have full access.</p>
@@ -79,12 +87,22 @@ async function loadLocksConfig() {
         <input type="checkbox" id="lock_emoluments" style="width:20px;height:20px;cursor:pointer" ${lockEmoluments ? 'checked' : ''}>
       </div>
 
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--bg-light);border-radius:6px">
-        <div>
-          <strong>Lock Financial Year selection</strong><br>
-          <small class="text-muted">Prevents changing the default Financial Year in Emoluments popup</small>
+      <div style="padding:12px;background:var(--bg-light);border-radius:6px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div>
+            <strong>Lock Financial Year selection</strong><br>
+            <small class="text-muted">Prevents selecting/changing locked Financial Years in Emoluments popup</small>
+          </div>
+          <input type="checkbox" id="lock_all_fy" style="width:20px;height:20px;cursor:pointer">
         </div>
-        <input type="checkbox" id="lock_financial_year" style="width:20px;height:20px;cursor:pointer" ${lockFinancialYear ? 'checked' : ''}>
+        <div style="padding-left:20px; display:flex; flex-direction:column; gap:8px; margin-top:8px;" id="fyCheckboxesContainer">
+          ${fyOptions.map(fy => `
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="checkbox" class="fy-lock-checkbox" data-fy="${fy}" id="lock_fy_${fy}" style="width:16px;height:16px;cursor:pointer" ${lockedYears.includes(fy) ? 'checked' : ''}>
+              <label for="lock_fy_${fy}" style="cursor:pointer;font-size:13px">${fy}</label>
+            </div>
+          `).join('')}
+        </div>
       </div>
       
       <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--bg-light);border-radius:6px">
@@ -130,6 +148,26 @@ async function loadLocksConfig() {
       <button class="btn btn-primary" onclick="saveFeatureLocks()"><i class="bi bi-save"></i> Save Lock Settings</button>
     </div>
   `;
+
+  // Attach event listeners for financial year checkboxes
+  const allFYCheckbox = container.querySelector('#lock_all_fy');
+  const fyCheckboxes = container.querySelectorAll('.fy-lock-checkbox');
+  
+  if (fyCheckboxes.length > 0) {
+    allFYCheckbox.checked = Array.from(fyCheckboxes).every(cb => cb.checked);
+  }
+  
+  allFYCheckbox.addEventListener('change', (e) => {
+    fyCheckboxes.forEach(cb => {
+      cb.checked = e.target.checked;
+    });
+  });
+  
+  fyCheckboxes.forEach(cb => {
+    cb.addEventListener('change', () => {
+      allFYCheckbox.checked = Array.from(fyCheckboxes).every(c => c.checked);
+    });
+  });
 }
 
 async function saveFeatureLocks() {
@@ -140,7 +178,13 @@ async function saveFeatureLocks() {
   const lockEmoluments = document.getElementById('lock_emoluments').checked ? 'true' : 'false';
   const lockLeave = document.getElementById('lock_leave').checked ? 'true' : 'false';
   const lockContract = document.getElementById('lock_contract').checked ? 'true' : 'false';
-  const lockFinancialYear = document.getElementById('lock_financial_year').checked ? 'true' : 'false';
+  
+  const fyCheckboxes = document.querySelectorAll('.fy-lock-checkbox');
+  const lockedYears = Array.from(fyCheckboxes)
+    .filter(cb => cb.checked)
+    .map(cb => cb.getAttribute('data-fy'))
+    .join(',');
+  const lockFinancialYear = lockedYears.length > 0 ? 'true' : 'false';
   
   showLoading(true);
   try {
@@ -152,7 +196,8 @@ async function saveFeatureLocks() {
       API.updateConfig('LOCK_EMOLUMENTS', lockEmoluments),
       API.updateConfig('LOCK_LEAVE', lockLeave),
       API.updateConfig('LOCK_CONTRACT', lockContract),
-      API.updateConfig('LOCK_FINANCIAL_YEAR', lockFinancialYear)
+      API.updateConfig('LOCK_FINANCIAL_YEAR', lockFinancialYear),
+      API.updateConfig('LOCKED_FINANCIAL_YEARS', lockedYears)
     ]);
     showToast('Lock settings saved successfully', 'success');
     loadLocksConfig();

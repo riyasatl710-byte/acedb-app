@@ -378,7 +378,8 @@ function showAddEmolumentModal() {
   const festDisabled = !isSuper && (salaryFeatureLocks.LOCK_FESTIVAL_ALLOWANCE || salaryFeatureLocks.LOCK_EMOLUMENTS) ? 'disabled' : '';
   const matDisabled = !isSuper && (salaryFeatureLocks.LOCK_MATERNITY_PAY || salaryFeatureLocks.LOCK_EMOLUMENTS) ? 'disabled' : '';
   const elDisabled = !isSuper && (salaryFeatureLocks.LOCK_EL_SURRENDER || salaryFeatureLocks.LOCK_EMOLUMENTS) ? 'disabled' : '';
-  const fyDisabled = !isSuper && salaryFeatureLocks.LOCK_FINANCIAL_YEAR ? 'disabled' : '';
+
+  const lockedYears = (salaryFeatureLocks.LOCKED_FINANCIAL_YEARS || '').split(',').map(s => s.trim()).filter(Boolean);
 
   // Filter active employees based on role-based scope access
   let visibleEmps = allTrackerEmployees;
@@ -407,8 +408,13 @@ function showAddEmolumentModal() {
       </div>
       <div class="form-group">
         <label class="form-label">Financial Year *</label>
-        <select class="form-select" id="emolNewMonth" ${fyDisabled}>
-          ${fyOptions.map(fy => `<option value="${fy}" ${fy === currentFY ? 'selected' : ''}>${fy}</option>`).join('')}
+        <select class="form-select" id="emolNewMonth">
+          ${fyOptions.map(fy => {
+            const isLocked = !isSuper && lockedYears.includes(fy);
+            const disabledAttr = isLocked ? 'disabled' : '';
+            const label = isLocked ? `${fy} (Locked)` : fy;
+            return `<option value="${fy}" ${fy === currentFY ? 'selected' : ''} ${disabledAttr}>${label}</option>`;
+          }).join('')}
         </select>
       </div>
       <div class="form-row">
@@ -466,6 +472,13 @@ async function saveEmolument() {
     return;
   }
 
+  const isSuper = hasRole('SuperAdmin');
+  const lockedYears = (salaryFeatureLocks.LOCKED_FINANCIAL_YEARS || '').split(',').map(s => s.trim()).filter(Boolean);
+  if (!isSuper && lockedYears.includes(data.month)) {
+    showToast(`Financial Year ${data.month} is locked for editing.`, 'error');
+    return;
+  }
+
   const result = await API.addSalary(data);
   if (result.success) {
     showToast(result.message || 'Emolument added', 'success');
@@ -481,6 +494,15 @@ async function showEditEmolumentModal(recordId) {
   if (!isSuper && salaryFeatureLocks.LOCK_EMOLUMENTS) {
     showToast('Emolument entry is locked', 'warning');
     return;
+  }
+
+  const rec = allEmolumentsList.find(r => r.RecordID === recordId);
+  if (rec) {
+    const lockedYears = (salaryFeatureLocks.LOCKED_FINANCIAL_YEARS || '').split(',').map(s => s.trim()).filter(Boolean);
+    if (!isSuper && lockedYears.includes(rec.Month)) {
+      showToast(`Financial Year ${rec.Month} is locked.`, 'error');
+      return;
+    }
   }
 
   const newStatus = prompt('Update payment status (Paid/Pending/Held):');

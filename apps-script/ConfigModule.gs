@@ -92,7 +92,8 @@ function handleGetFeatureLocks(data, session) {
     LOCK_EL_SURRENDER: String(getConfigValue('LOCK_EL_SURRENDER')).toLowerCase() === 'true',
     LOCK_EMOLUMENTS: String(getConfigValue('LOCK_EMOLUMENTS')).toLowerCase() === 'true',
     LOCK_LEAVE: String(getConfigValue('LOCK_LEAVE')).toLowerCase() === 'true',
-    LOCK_CONTRACT: String(getConfigValue('LOCK_CONTRACT')).toLowerCase() === 'true'
+    LOCK_CONTRACT: String(getConfigValue('LOCK_CONTRACT')).toLowerCase() === 'true',
+    LOCKED_FINANCIAL_YEARS: getConfigValue('LOCKED_FINANCIAL_YEARS') || ''
   };
   return successResponse(locks, 'Feature locks retrieved');
 }

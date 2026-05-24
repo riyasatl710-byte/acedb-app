@@ -42,6 +42,9 @@ function handleAddSalary(data, session) {
     var lockEmoluments = String(getConfigValue('LOCK_EMOLUMENTS')).toLowerCase() === 'true';
     if (lockEmoluments) return errorResponse('Other Emoluments updates are currently locked.');
 
+    var lockedFYs = (getConfigValue('LOCKED_FINANCIAL_YEARS') || '').split(',').map(function(s){return s.trim();}).filter(Boolean);
+    if (lockedFYs.indexOf(data.month) !== -1) return errorResponse('Financial Year ' + data.month + ' is currently locked.');
+
     var lockFestival = String(getConfigValue('LOCK_FESTIVAL_ALLOWANCE')).toLowerCase() === 'true';
     var lockMaternity = String(getConfigValue('LOCK_MATERNITY_PAY')).toLowerCase() === 'true';
     var lockEL = String(getConfigValue('LOCK_EL_SURRENDER')).toLowerCase() === 'true';
@@ -98,6 +101,9 @@ function handleUpdateSalary(data, session) {
   if (!isSuper) {
     var lockEmoluments = String(getConfigValue('LOCK_EMOLUMENTS')).toLowerCase() === 'true';
     if (lockEmoluments) return errorResponse('Other Emoluments updates are currently locked.');
+
+    var lockedFYs = (getConfigValue('LOCKED_FINANCIAL_YEARS') || '').split(',').map(function(s){return s.trim();}).filter(Boolean);
+    if (lockedFYs.indexOf(rec.Month) !== -1) return errorResponse('Financial Year ' + rec.Month + ' is currently locked.');
   }
 
   var updates = {};

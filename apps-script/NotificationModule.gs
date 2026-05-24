@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ACEDB - NotificationModule.gs
  */
 
@@ -9,6 +9,7 @@ function handleGetNotifications(data, session) {
   rows = rows.filter(function(r) {
     if (String(r.IsActive) !== 'TRUE' && String(r.IsActive) !== 'true' && r.IsActive !== true) return false;
     if (r.ExpiresAt && new Date(r.ExpiresAt) < today) return false;
+    if (session && (session.role === 'SuperAdmin' || session.role === 'ITAdmin')) return true;
     if (r.VisibleTo === 'All') return true;
     if (!session) return r.VisibleTo === 'All';
     if (r.VisibleTo === session.role) return true;

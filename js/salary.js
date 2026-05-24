@@ -2,6 +2,7 @@
 
 let allTrackerEmployees = [];
 let allEmolumentsList = [];
+let salaryFeatureLocks = {};
 
 async function loadSalary() {
   const content = document.getElementById('pageContent');
@@ -67,12 +68,15 @@ async function loadHonorariumTracker() {
     </table>
   </div></div></div>`;
 
-  // Fetch dropdown lists and employees list
-  const [empRes, distRes, schRes] = await Promise.all([
+  // Fetch dropdown lists, employees list, and locks
+  const [empRes, distRes, schRes, locksRes] = await Promise.all([
     API.getEmployees({ status: 'Active' }),
     API.getDistricts(),
-    API.getSchemes()
+    API.getSchemes(),
+    API.getFeatureLocks()
   ]);
+
+  salaryFeatureLocks = (locksRes.success) ? locksRes.data : {};
 
   if (distRes.success) populateSelect('trackDistFilter', distRes.data, t('all_districts'));
   if (schRes.success) populateSelect('trackSchemeFilter', schRes.data, t('all_schemes'));
@@ -119,7 +123,7 @@ function filterTrackerTable() {
       <td>${e.PartialAmount ? formatCurrency(e.PartialAmount) : '-'}</td>
       <td><strong style="color:${e.pendingHonorarium > 0 ? 'var(--danger)' : 'var(--success)'}">${formatCurrency(e.pendingHonorarium)}</strong></td>
       <td>
-        ${hasRole('SuperAdmin','DistrictAdmin') ? `
+        ${(hasRole('SuperAdmin') || (hasRole('DistrictAdmin') && !salaryFeatureLocks.LOCK_HONORARIUM)) ? `
           <button class="btn btn-ghost btn-sm" onclick="showUpdateTrackerModal('${e.EmpID}')" title="Update Payment Status">
             <i class="bi bi-pencil-square" style="color:var(--primary);font-size:16px"></i>
           </button>
@@ -234,12 +238,31 @@ async function saveTrackerStatus(empId) {
 
 async function loadOtherEmoluments() {
   const container = document.getElementById('salaryTabContent');
+  
+  // Fetch locks
+  const locksRes = await API.getFeatureLocks();
+  salaryFeatureLocks = (locksRes.success) ? locksRes.data : {};
+
+  const currentYear = new Date().getFullYear();
+  const fyOptions = [
+    `${currentYear-2}-${String(currentYear-1).slice(2)}`,
+    `${currentYear-1}-${String(currentYear).slice(2)}`,
+    `${currentYear}-${String(currentYear+1).slice(2)}`,
+    `${currentYear+1}-${String(currentYear+2).slice(2)}`
+  ];
+
+  const allEmolumentsLocked = salaryFeatureLocks.LOCK_MATERNITY_PAY && salaryFeatureLocks.LOCK_FESTIVAL_ALLOWANCE && salaryFeatureLocks.LOCK_EL_SURRENDER;
+  const canAdd = hasRole('SuperAdmin') || (hasRole('DistrictAdmin') && !allEmolumentsLocked);
+
   container.innerHTML = `<div class="table-toolbar">
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <input class="form-control" style="max-width:160px" id="emolEmpFilter" placeholder="Employee ID" onchange="fetchEmolumentRecords()">
-      <input type="month" class="form-control" style="max-width:160px" id="emolMonthFilter" onchange="fetchEmolumentRecords()">
+      <select class="form-select" style="max-width:180px;padding:8px 36px 8px 12px;font-size:13px" id="emolMonthFilter" onchange="fetchEmolumentRecords()">
+        <option value="">All Financial Years</option>
+        ${fyOptions.map(fy => `<option value="${fy}">${fy}</option>`).join('')}
+      </select>
     </div>
-    ${hasRole('SuperAdmin','DistrictAdmin') ? `
+    ${canAdd ? `
       <button class="btn btn-primary btn-sm" onclick="showAddEmolumentModal()"><i class="bi bi-plus-lg"></i> Add Emolument</button>
     ` : ''}
   </div>
@@ -249,7 +272,7 @@ async function loadOtherEmoluments() {
         <tr>
           <th>Record ID</th>
           <th>Employee ID</th>
-          <th>${t('month')}</th>
+          <th>Financial Year</th>
           <th>Maternity Pay</th>
           <th>Festival Allowance</th>
           <th>EL Surrender</th>
@@ -316,6 +339,22 @@ async function fetchEmolumentRecords() {
 }
 
 function showAddEmolumentModal() {
+  const currentYear = new Date().getFullYear();
+  const fyOptions = [
+    `${currentYear-2}-${String(currentYear-1).slice(2)}`,
+    `${currentYear-1}-${String(currentYear).slice(2)}`,
+    `${currentYear}-${String(currentYear+1).slice(2)}`,
+    `${currentYear+1}-${String(currentYear+2).slice(2)}`
+  ];
+  const d = new Date();
+  const fyYear = d.getMonth() < 3 ? d.getFullYear() - 1 : d.getFullYear();
+  const currentFY = `${fyYear}-${String(fyYear+1).slice(2)}`;
+
+  const isSuper = hasRole('SuperAdmin');
+  const festDisabled = !isSuper && salaryFeatureLocks.LOCK_FESTIVAL_ALLOWANCE ? 'disabled' : '';
+  const matDisabled = !isSuper && salaryFeatureLocks.LOCK_MATERNITY_PAY ? 'disabled' : '';
+  const elDisabled = !isSuper && salaryFeatureLocks.LOCK_EL_SURRENDER ? 'disabled' : '';
+
   const modal = document.getElementById('mainModal');
   modal.innerHTML = `<div class="modal">
     <div class="modal-header">
@@ -328,23 +367,25 @@ function showAddEmolumentModal() {
         <input class="form-control" id="emolNewEmpId" placeholder="EMP-0001">
       </div>
       <div class="form-group">
-        <label class="form-label">${t('month')} *</label>
-        <input type="month" class="form-control" id="emolNewMonth">
+        <label class="form-label">Financial Year *</label>
+        <select class="form-select" id="emolNewMonth">
+          ${fyOptions.map(fy => `<option value="${fy}" ${fy === currentFY ? 'selected' : ''}>${fy}</option>`).join('')}
+        </select>
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">Festival Allowance (₹)</label>
-          <input type="number" class="form-control" id="emolNewFestival" value="0">
+          <label class="form-label">Festival Allowance (₹) ${!isSuper && salaryFeatureLocks.LOCK_FESTIVAL_ALLOWANCE ? '<span class="text-danger">(Locked)</span>' : ''}</label>
+          <input type="number" class="form-control" id="emolNewFestival" value="0" ${festDisabled}>
         </div>
         <div class="form-group">
-          <label class="form-label">Maternity Pay (₹)</label>
-          <input type="number" class="form-control" id="emolNewMaternity" value="0">
+          <label class="form-label">Maternity Pay (₹) ${!isSuper && salaryFeatureLocks.LOCK_MATERNITY_PAY ? '<span class="text-danger">(Locked)</span>' : ''}</label>
+          <input type="number" class="form-control" id="emolNewMaternity" value="0" ${matDisabled}>
         </div>
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">EL Surrender (₹)</label>
-          <input type="number" class="form-control" id="emolNewEL" value="0">
+          <label class="form-label">EL Surrender (₹) ${!isSuper && salaryFeatureLocks.LOCK_EL_SURRENDER ? '<span class="text-danger">(Locked)</span>' : ''}</label>
+          <input type="number" class="form-control" id="emolNewEL" value="0" ${elDisabled}>
         </div>
         <div class="form-group">
           <label class="form-label">${t('status')}</label>
@@ -382,7 +423,7 @@ async function saveEmolument() {
   };
 
   if (!data.empId || !data.month) {
-    showToast('Employee ID and Month are required', 'warning');
+    showToast('Employee ID and Financial Year are required', 'warning');
     return;
   }
 

@@ -1,4 +1,4 @@
-﻿/* ACEDB - api.js  API communication layer */
+/* ACEDB - api.js  API communication layer */
 const API = {
   async call(action, data = {}, requireAuth = true) {
     const url = ACEDB_CONFIG.API_URL;
@@ -105,6 +105,7 @@ const API = {
 
   // Config
   getConfig() { return this.call('getConfig'); },
+  getFeatureLocks() { return this.call('getFeatureLocks'); },
   updateConfig(key, value) { return this.call('updateConfig', { key, value }); },
   getDistricts() { return this.call('getDistricts'); },
   getSchemes() { return this.call('getSchemes'); },

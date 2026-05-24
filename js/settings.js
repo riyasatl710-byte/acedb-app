@@ -1,20 +1,122 @@
-﻿/* ACEDB - settings.js */
+/* ACEDB - settings.js */
 async function loadSettings() {
   const content = document.getElementById('pageContent');
-  content.innerHTML = `<div class="animate-slide">
-    <div class="card"><div class="card-header"><h3>Scheme Management</h3></div><div class="card-body">
-      <div style="display:flex;gap:8px;margin-bottom:16px"><input class="form-control" id="newScheme" placeholder="New scheme name" style="max-width:300px">
-        <button class="btn btn-primary btn-sm" onclick="addNewScheme()"><i class="bi bi-plus-lg"></i> Add</button></div>
-      <div id="schemesList">${t('loading')}</div>
-    </div></div>
+  const user = getCurrentUser();
+  const isSuper = user && user.role === 'SuperAdmin';
+  
+  let html = `<div class="animate-slide">`;
+  
+  if (isSuper) {
+    html += `
+      <div class="card"><div class="card-header"><h3>Scheme Management</h3></div><div class="card-body">
+        <div style="display:flex;gap:8px;margin-bottom:16px"><input class="form-control" id="newScheme" placeholder="New scheme name" style="max-width:300px">
+          <button class="btn btn-primary btn-sm" onclick="addNewScheme()"><i class="bi bi-plus-lg"></i> Add</button></div>
+        <div id="schemesList">${t('loading')}</div>
+      </div></div>
+      
+      <div class="card"><div class="card-header"><h3>Feature Entry Locks</h3></div><div class="card-body" id="locksConfigList">
+        <div class="text-center" style="padding:10px"><div class="spinner" style="margin:0 auto 10px"></div><p class="text-muted">Loading...</p></div>
+      </div></div>
+    `;
+  }
+  
+  html += `
     <div class="card"><div class="card-header"><h3>${t('change_password')}</h3></div><div class="card-body">
       <div class="form-group"><label class="form-label">${t('old_password')}</label><input type="password" class="form-control" id="oldPwd" style="max-width:300px"></div>
       <div class="form-group"><label class="form-label">${t('new_password')}</label><input type="password" class="form-control" id="newPwd" style="max-width:300px"></div>
       <button class="btn btn-primary" onclick="doChangePassword()">${t('change_password')}</button>
     </div></div>
-    <div class="card"><div class="card-header"><h3>System Configuration</h3></div><div class="card-body" id="configList">${t('loading')}</div></div>
-  </div>`;
-  loadSchemes(); loadConfigList();
+  `;
+  
+  if (isSuper) {
+    html += `<div class="card"><div class="card-header"><h3>System Configuration</h3></div><div class="card-body" id="configList">${t('loading')}</div></div>`;
+  }
+  
+  html += `</div>`;
+  content.innerHTML = html;
+  
+  if (isSuper) {
+    loadSchemes();
+    loadLocksConfig();
+    loadConfigList();
+  }
+}
+
+async function loadLocksConfig() {
+  const result = await API.getConfig();
+  const container = document.getElementById('locksConfigList');
+  if (!result.success) {
+    container.innerHTML = '<p class="text-muted">Could not load locks config</p>';
+    return;
+  }
+  const config = result.data;
+  
+  const lockHonorarium = String(config.LOCK_HONORARIUM || 'false').toLowerCase() === 'true';
+  const lockFestival = String(config.LOCK_FESTIVAL_ALLOWANCE || 'false').toLowerCase() === 'true';
+  const lockMaternity = String(config.LOCK_MATERNITY_PAY || 'false').toLowerCase() === 'true';
+  const lockEL = String(config.LOCK_EL_SURRENDER || 'false').toLowerCase() === 'true';
+  
+  container.innerHTML = `
+    <p class="text-muted" style="margin-bottom:20px; font-size:13px;">Configure lock status for data entry facilities. When locked, non-Superadmin roles (e.g. District Admins) will be restricted from adding or updating records. Superadmins always have full access.</p>
+    <div style="display:grid;gap:16px;max-width:550px">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--bg-light);border-radius:6px">
+        <div>
+          <strong>Lock Honorarium updates</strong><br>
+          <small class="text-muted">Blocks updating Last Paid Date and Partial Month/Amount</small>
+        </div>
+        <input type="checkbox" id="lock_honorarium" style="width:20px;height:20px;cursor:pointer" ${lockHonorarium ? 'checked' : ''}>
+      </div>
+      
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--bg-light);border-radius:6px">
+        <div>
+          <strong>Lock Festival Allowance entry</strong><br>
+          <small class="text-muted">Blocks inputting Festival Allowance in other emoluments</small>
+        </div>
+        <input type="checkbox" id="lock_festival" style="width:20px;height:20px;cursor:pointer" ${lockFestival ? 'checked' : ''}>
+      </div>
+      
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--bg-light);border-radius:6px">
+        <div>
+          <strong>Lock Maternity Pay entry</strong><br>
+          <small class="text-muted">Blocks inputting Maternity Pay in other emoluments</small>
+        </div>
+        <input type="checkbox" id="lock_maternity" style="width:20px;height:20px;cursor:pointer" ${lockMaternity ? 'checked' : ''}>
+      </div>
+      
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--bg-light);border-radius:6px">
+        <div>
+          <strong>Lock EL Surrender entry</strong><br>
+          <small class="text-muted">Blocks inputting EL Surrender in other emoluments</small>
+        </div>
+        <input type="checkbox" id="lock_el" style="width:20px;height:20px;cursor:pointer" ${lockEL ? 'checked' : ''}>
+      </div>
+      
+      <button class="btn btn-primary" onclick="saveFeatureLocks()"><i class="bi bi-save"></i> Save Lock Settings</button>
+    </div>
+  `;
+}
+
+async function saveFeatureLocks() {
+  const lockHonorarium = document.getElementById('lock_honorarium').checked ? 'true' : 'false';
+  const lockFestival = document.getElementById('lock_festival').checked ? 'true' : 'false';
+  const lockMaternity = document.getElementById('lock_maternity').checked ? 'true' : 'false';
+  const lockEL = document.getElementById('lock_el').checked ? 'true' : 'false';
+  
+  showLoading(true);
+  try {
+    await Promise.all([
+      API.updateConfig('LOCK_HONORARIUM', lockHonorarium),
+      API.updateConfig('LOCK_FESTIVAL_ALLOWANCE', lockFestival),
+      API.updateConfig('LOCK_MATERNITY_PAY', lockMaternity),
+      API.updateConfig('LOCK_EL_SURRENDER', lockEL)
+    ]);
+    showToast('Lock settings saved successfully', 'success');
+    loadLocksConfig();
+  } catch (err) {
+    showToast('Failed to save lock settings: ' + err.message, 'error');
+  } finally {
+    showLoading(false);
+  }
 }
 
 async function loadSchemes() {

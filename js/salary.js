@@ -189,11 +189,11 @@ function showUpdateTrackerModal(empId) {
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Amount Paid (₹)</label>
-          <input type="number" class="form-control" id="trackAmountPaid" value="${emp.pendingHonorarium || 0}">
+          <input type="number" class="form-control" id="trackAmountPaid" placeholder="Enter amount" value="">
         </div>
         <div class="form-group">
           <label class="form-label">Date of Payment</label>
-          <input type="date" class="form-control" id="trackPaymentDate" value="${new Date().toISOString().split('T')[0]}">
+          <input type="date" class="form-control" id="trackPaymentDate" value="">
         </div>
       </div>
     </div>
@@ -442,7 +442,6 @@ function showAddEmolumentModal() {
           <select class="form-select" id="emolNewType" onchange="onEmolTypeChange()">
             <option value="">-- Select Type --</option>
             <option value="FestivalAllowance" ${festDisabled}>Festival Allowance ${!isSuper && salaryFeatureLocks.LOCK_FESTIVAL_ALLOWANCE ? '(Locked)' : ''}</option>
-            <option value="MaternityPay" ${matDisabled}>Maternity Pay ${!isSuper && salaryFeatureLocks.LOCK_MATERNITY_PAY ? '(Locked)' : ''}</option>
             <option value="ELSurrender" ${elDisabled}>EL Surrender ${!isSuper && salaryFeatureLocks.LOCK_EL_SURRENDER ? '(Locked)' : ''}</option>
           </select>
         </div>

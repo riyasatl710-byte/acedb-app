@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ACEDB - Firebase Data Migration</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    body { padding: 40px; background: #0f0f1a; color: white; font-family: system-ui; }
+    .card { background: #1a1a2e; padding: 30px; border-radius: 8px; max-width: 600px; margin: 0 auto; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+    .form-control { width: 100%; padding: 10px; margin-bottom: 16px; background: #2a2a40; border: 1px solid #3a3a5a; color: white; border-radius: 4px; }
+    .btn { padding: 10px 20px; background: #6366f1; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+    .log { margin-top: 20px; background: #000; padding: 15px; border-radius: 4px; font-family: monospace; font-size: 13px; height: 300px; overflow-y: auto; color: #a5b4fc; }
+    .log div { margin-bottom: 4px; }
+    .success { color: #4ade80; }
+    .error { color: #f87171; }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h2>Data Migration to Firebase</h2>
+    <p>This tool will extract all data from the Google Apps Script database (Google Sheets) and import it into Firestore.</p>
+    
+    <label>SuperAdmin User ID (from old system)</label>
+    <input type="text" id="adminId" class="form-control" placeholder="e.g. SA001">
+    
+    <label>SuperAdmin Password (from old system)</label>
+    <input type="password" id="adminPwd" class="form-control" placeholder="Password">
+    
+    <button class="btn" onclick="startMigration()">Start Migration</button>
+
+    <div class="log" id="logWindow">
+      <div>Ready to start. Please enter credentials.</div>
+    </div>
+  </div>
+
+  <script type="module" src="js/firebase-init.js"></script>
+  <script src="js/migrate.js"></script>
+
+</body>
+</html>

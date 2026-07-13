@@ -53,11 +53,23 @@ function handleAddSalary(data, session) {
     if (lockEL && parseFloat(data.elSurrender) > 0) return errorResponse('EL Surrender updates are currently locked.');
   }
 
-  // Check duplicate
+  // Check duplicate - allow multiple emolument types per FY but prevent identical type duplicates
   var existing = readAllRows('Salary_History').filter(function(r) {
     return r.EmpID === data.empId && r.Month === data.month;
   });
-  if (existing.length > 0) return errorResponse('Honorarium record already exists for this month');
+  if (existing.length > 0) {
+    var hasFest = parseFloat(data.festivalAllowance) || 0;
+    var hasMat = parseFloat(data.maternityPay) || 0;
+    var hasEL = parseFloat(data.elSurrender) || 0;
+    var hasBasic = parseFloat(data.basicSalary) || 0;
+    for (var d = 0; d < existing.length; d++) {
+      var ex = existing[d];
+      if (hasFest > 0 && (parseFloat(ex.FestivalAllowance) || 0) > 0) return errorResponse('Festival Allowance already recorded for this Financial Year');
+      if (hasMat > 0 && (parseFloat(ex.MaternityPay) || 0) > 0) return errorResponse('Maternity Pay already recorded for this Financial Year');
+      if (hasEL > 0 && (parseFloat(ex.ELSurrender) || 0) > 0) return errorResponse('EL Surrender already recorded for this Financial Year');
+      if (hasBasic > 0 && (parseFloat(ex.BasicSalary) || 0) > 0) return errorResponse('Basic Salary already recorded for this month');
+    }
+  }
 
   var basic = parseFloat(data.basicSalary) || 0;
   var maternity = parseFloat(data.maternityPay) || 0;
@@ -196,7 +208,29 @@ function handleUpdateEmployeeHonorariumStatus(data, session) {
   };
 
   updateRow('Employees', emp._rowIndex, updates);
-  
+
+  // Log payment transaction if amount paid is provided
+  var amountPaid = parseFloat(data.amountPaid) || 0;
+  if (amountPaid > 0) {
+    var paymentDate = data.paymentDate || now().split('T')[0];
+    var payRecId = generateId('SAL');
+    appendRow_('Salary_History', {
+      RecordID: payRecId,
+      EmpID: data.empId,
+      Month: lastPaidDateSnapped.substring(0, 7),
+      BasicSalary: amountPaid,
+      MaternityPay: 0,
+      FestivalAllowance: 0,
+      ELSurrender: 0,
+      TotalPaid: amountPaid,
+      PaymentStatus: 'Paid',
+      PaidDate: paymentDate,
+      Remarks: 'Honorarium payment logged via tracker',
+      CreatedBy: session.userId,
+      CreatedAt: now()
+    });
+  }
+
   logAudit(session.userId, 'UPDATE', 'Salary', data.empId, 'Updated honorarium status: paid up to ' + lastPaidDateSnapped + (data.partialMonth ? ' (Partial: ' + data.partialMonth + ' - ' + data.partialAmount + ')' : ''));
   return successResponse(null, 'Honorarium status updated');
 }

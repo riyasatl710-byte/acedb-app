@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ACEDB - Code.gs
  * Main entry point. Routes all doGet and doPost requests.
  */
@@ -105,6 +105,7 @@ function doPost(e) {
       case 'getSchemes': return handleGetSchemes(data, session);
       case 'addScheme': return handleAddScheme(data, session);
       case 'deleteScheme': return handleDeleteScheme(data, session);
+      case 'getOffices': return handleGetOffices(data, session);
 
       // Audit
       case 'getAuditLog': return handleGetAuditLog(data, session);

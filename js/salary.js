@@ -181,6 +181,21 @@ function showUpdateTrackerModal(empId) {
           <input type="number" class="form-control" id="trackPartialAmount" value="${emp.PartialAmount || ''}">
         </div>
       </div>
+      <hr style="margin:16px 0;border-color:var(--border)">
+      <div style="background:var(--bg-light);padding:12px;border-radius:6px;margin-bottom:12px">
+        <strong style="color:var(--primary)">Payment Logging</strong>
+        <small class="text-muted" style="display:block;margin-top:4px">Record the actual amount disbursed for expenditure tracking</small>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Amount Paid (₹)</label>
+          <input type="number" class="form-control" id="trackAmountPaid" value="${emp.pendingHonorarium || 0}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Date of Payment</label>
+          <input type="date" class="form-control" id="trackPaymentDate" value="${new Date().toISOString().split('T')[0]}">
+        </div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="hideModal('mainModal')">${t('cancel')}</button>
@@ -221,6 +236,8 @@ async function saveTrackerStatus(empId) {
   const lastPaidDate = document.getElementById('trackLastPaid').value;
   const partialMonth = document.getElementById('trackPartialMonth').value;
   const partialAmount = document.getElementById('trackPartialAmount').value;
+  const amountPaid = document.getElementById('trackAmountPaid').value;
+  const paymentDate = document.getElementById('trackPaymentDate').value;
 
   if (!lastPaidDate) {
     showToast('Last fully paid date is required', 'warning');
@@ -238,7 +255,9 @@ async function saveTrackerStatus(empId) {
     empId,
     lastPaidDate,
     partialMonth,
-    partialAmount: partialAmount || 0
+    partialAmount: partialAmount || 0,
+    amountPaid: amountPaid || 0,
+    paymentDate: paymentDate || ''
   });
 
   if (result.success) {
@@ -403,7 +422,7 @@ function showAddEmolumentModal() {
         <label class="form-label">Employee *</label>
         <select class="form-select" id="emolNewEmpId">
           <option value="">-- Select Employee --</option>
-          ${visibleEmps.map(e => `<option value="${e.EmpID}">${escapeHtml(e.EmployeeName)} (${e.EmpID})</option>`).join('')}
+          ${visibleEmps.map(e => `<option value="${e.EmpID}">${escapeHtml(e.EmployeeName)} (${e.EmpID}) (${escapeHtml(e.Scheme || 'N/A')})</option>`).join('')}
         </select>
       </div>
       <div class="form-group">
@@ -419,26 +438,31 @@ function showAddEmolumentModal() {
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">Festival Allowance (₹) ${!isSuper && salaryFeatureLocks.LOCK_FESTIVAL_ALLOWANCE ? '<span class="text-danger">(Locked)</span>' : ''}</label>
-          <input type="number" class="form-control" id="emolNewFestival" value="0" ${festDisabled}>
+          <label class="form-label">Emolument Type *</label>
+          <select class="form-select" id="emolNewType" onchange="onEmolTypeChange()">
+            <option value="">-- Select Type --</option>
+            <option value="FestivalAllowance" ${festDisabled}>Festival Allowance ${!isSuper && salaryFeatureLocks.LOCK_FESTIVAL_ALLOWANCE ? '(Locked)' : ''}</option>
+            <option value="MaternityPay" ${matDisabled}>Maternity Pay ${!isSuper && salaryFeatureLocks.LOCK_MATERNITY_PAY ? '(Locked)' : ''}</option>
+            <option value="ELSurrender" ${elDisabled}>EL Surrender ${!isSuper && salaryFeatureLocks.LOCK_EL_SURRENDER ? '(Locked)' : ''}</option>
+          </select>
         </div>
         <div class="form-group">
-          <label class="form-label">Maternity Pay (₹) ${!isSuper && salaryFeatureLocks.LOCK_MATERNITY_PAY ? '<span class="text-danger">(Locked)</span>' : ''}</label>
-          <input type="number" class="form-control" id="emolNewMaternity" value="0" ${matDisabled}>
+          <label class="form-label">Amount (₹) *</label>
+          <input type="number" class="form-control" id="emolNewAmount" value="0">
         </div>
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">EL Surrender (₹) ${!isSuper && salaryFeatureLocks.LOCK_EL_SURRENDER ? '<span class="text-danger">(Locked)</span>' : ''}</label>
-          <input type="number" class="form-control" id="emolNewEL" value="0" ${elDisabled}>
-        </div>
-        <div class="form-group">
           <label class="form-label">${t('status')}</label>
-          <select class="form-select" id="emolNewStatus">
+          <select class="form-select" id="emolNewStatus" onchange="toggleEmolPaymentDate()">
             <option value="Paid">Paid</option>
             <option value="Pending">Pending</option>
             <option value="Held">Held</option>
           </select>
+        </div>
+        <div class="form-group" id="emolPaymentDateGroup">
+          <label class="form-label">Date of Payment</label>
+          <input type="date" class="form-control" id="emolNewPaidDate" value="${new Date().toISOString().split('T')[0]}">
         </div>
       </div>
       <div class="form-group">
@@ -455,29 +479,58 @@ function showAddEmolumentModal() {
   showModal('mainModal');
 }
 
-async function saveEmolument() {
-  const data = {
-    empId: document.getElementById('emolNewEmpId').value.trim(),
-    month: document.getElementById('emolNewMonth').value,
-    basicSalary: 0,
-    maternityPay: document.getElementById('emolNewMaternity').value,
-    festivalAllowance: document.getElementById('emolNewFestival').value,
-    elSurrender: document.getElementById('emolNewEL').value,
-    paymentStatus: document.getElementById('emolNewStatus').value,
-    remarks: document.getElementById('emolNewRemarks').value
-  };
+function onEmolTypeChange() {
+  // No-op placeholder for future dynamic behavior
+}
 
-  if (!data.empId || !data.month) {
+function toggleEmolPaymentDate() {
+  const status = document.getElementById('emolNewStatus')?.value;
+  const group = document.getElementById('emolPaymentDateGroup');
+  if (group) {
+    group.style.display = status === 'Paid' ? '' : 'none';
+  }
+}
+
+async function saveEmolument() {
+  const empId = document.getElementById('emolNewEmpId').value.trim();
+  const month = document.getElementById('emolNewMonth').value;
+  const emolType = document.getElementById('emolNewType').value;
+  const amount = document.getElementById('emolNewAmount').value;
+  const paymentStatus = document.getElementById('emolNewStatus').value;
+  const paidDate = document.getElementById('emolNewPaidDate')?.value || '';
+  const remarks = document.getElementById('emolNewRemarks').value;
+
+  if (!empId || !month) {
     showToast('Employee Selection and Financial Year are required', 'warning');
+    return;
+  }
+  if (!emolType) {
+    showToast('Please select an Emolument Type', 'warning');
+    return;
+  }
+  if (!amount || parseFloat(amount) <= 0) {
+    showToast('Amount must be greater than zero', 'warning');
     return;
   }
 
   const isSuper = hasRole('SuperAdmin');
   const lockedYears = (salaryFeatureLocks.LOCKED_FINANCIAL_YEARS || '').split(',').map(s => s.trim()).filter(Boolean);
-  if (!isSuper && lockedYears.includes(data.month)) {
-    showToast(`Financial Year ${data.month} is locked for editing.`, 'error');
+  if (!isSuper && lockedYears.includes(month)) {
+    showToast(`Financial Year ${month} is locked for editing.`, 'error');
     return;
   }
+
+  const data = {
+    empId,
+    month,
+    basicSalary: 0,
+    maternityPay: emolType === 'MaternityPay' ? amount : 0,
+    festivalAllowance: emolType === 'FestivalAllowance' ? amount : 0,
+    elSurrender: emolType === 'ELSurrender' ? amount : 0,
+    paymentStatus,
+    paidDate: paymentStatus === 'Paid' ? paidDate : '',
+    remarks
+  };
 
   const result = await API.addSalary(data);
   if (result.success) {

@@ -8,6 +8,7 @@ async function loadReports() {
       <div class="stat-card red hover-lift cursor-pointer" onclick="generateReportUI('pendingPayments')"><div class="stat-icon red"><i class="bi bi-hourglass-split"></i></div><div class="stat-label fw-bold">${t('pending_payments')}</div></div>
       <div class="stat-card green hover-lift cursor-pointer" onclick="generateReportUI('serviceExperience')"><div class="stat-icon green"><i class="bi bi-clock-history"></i></div><div class="stat-label fw-bold">${t('service_report')}</div></div>
       <div class="stat-card blue hover-lift cursor-pointer" onclick="generateReportUI('leaveReport')"><div class="stat-icon blue"><i class="bi bi-calendar-check"></i></div><div class="stat-label fw-bold">${t('leave_report')}</div></div>
+      <div class="stat-card green hover-lift cursor-pointer" onclick="generateReportUI('paidExpenditure')" style="border-left:3px solid var(--success)"><div class="stat-icon green"><i class="bi bi-receipt-cutoff"></i></div><div class="stat-label fw-bold">Actual Paid (FY Expenditure)</div></div>
     </div>
     <div id="reportFilters" class="card hidden"><div class="card-header"><h3 id="reportTitle">Report</h3></div><div class="card-body" id="reportFilterBody"></div></div>
     <div id="reportResults" class="card hidden"><div class="card-header"><h3>Results</h3><div class="table-actions">
@@ -43,6 +44,22 @@ async function generateReportUI(type) {
     title.textContent = t('leave_report');
     filterBody.innerHTML = `<div class="form-row"><div class="form-group"><label class="form-label">${t('year')}</label><input type="number" class="form-control" id="repYear" value="${new Date().getFullYear()}"></div>
       <div class="form-group" style="display:flex;align-items:flex-end"><button class="btn btn-primary" onclick="runReport('${type}')">${t('generate')}</button></div></div>`;
+  } else if (type === 'paidExpenditure') {
+    title.textContent = 'Actual Paid (FY Expenditure)';
+    const currentYear = new Date().getFullYear();
+    const fyOpts = [
+      `${currentYear-2}-${String(currentYear-1).slice(2)}`,
+      `${currentYear-1}-${String(currentYear).slice(2)}`,
+      `${currentYear}-${String(currentYear+1).slice(2)}`,
+      `${currentYear+1}-${String(currentYear+2).slice(2)}`
+    ];
+    const d = new Date();
+    const fyY = d.getMonth() < 3 ? d.getFullYear() - 1 : d.getFullYear();
+    const curFY = `${fyY}-${String(fyY+1).slice(2)}`;
+    filterBody.innerHTML = `<div class="form-row"><div class="form-group"><label class="form-label">Financial Year</label><select class="form-select" id="repFY">
+      ${fyOpts.map(fy => `<option value="${fy}" ${fy===curFY?'selected':''}>${fy}</option>`).join('')}
+    </select></div>
+    <div class="form-group" style="display:flex;align-items:flex-end"><button class="btn btn-primary" onclick="runReport('${type}')">${t('generate')}</button></div></div>`;
   } else {
     title.textContent = type === 'employeeCount' ? t('employee_count') : t('pending_payments');
     filterBody.innerHTML = `<button class="btn btn-primary" onclick="runReport('${type}')">${t('generate')}</button>`;
@@ -57,6 +74,7 @@ async function runReport(type) {
   }
   if (type === 'salaryExpenditure') { filters.fromMonth = document.getElementById('repFromMonth')?.value; filters.toMonth = document.getElementById('repToMonth')?.value; }
   if (type === 'leaveReport') filters.year = document.getElementById('repYear')?.value;
+  if (type === 'paidExpenditure') filters.financialYear = document.getElementById('repFY')?.value;
 
   let result;
   if (type === 'serviceExperience') result = await API.getServiceReport(filters.minYears, { maxYears: filters.maxYears });
@@ -101,6 +119,24 @@ async function runReport(type) {
     let html = '<table class="data-table"><thead><tr><th>ID</th><th>Name</th><th>District</th><th>CL Used</th><th>CL Bal</th><th>EL Used</th><th>EL Bal</th></tr></thead><tbody>';
     result.data.report.forEach(r => html += `<tr><td>${r.EmpID}</td><td>${r.EmployeeName}</td><td>${r.District}</td><td>${r.CLUsed}</td><td>${r.CLBalance}</td><td>${r.ELUsed}</td><td>${r.ELBalance}</td></tr>`);
     html += '</tbody></table>';
+    resBody.innerHTML = html;
+  } else if (type === 'paidExpenditure') {
+    const d = result.data;
+    let html = `<div class="stats-grid mb-4" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr))">
+      <div class="stat-card purple"><div class="stat-value">${formatCurrency(d.grandTotal)}</div><div class="stat-label">Grand Total</div></div>
+      <div class="stat-card amber"><div class="stat-value">${formatCurrency(d.totalBasic)}</div><div class="stat-label">Honorarium</div></div>
+      <div class="stat-card green"><div class="stat-value">${formatCurrency(d.totalMaternity)}</div><div class="stat-label">Maternity</div></div>
+      <div class="stat-card blue"><div class="stat-value">${formatCurrency(d.totalFestival)}</div><div class="stat-label">Festival</div></div>
+      <div class="stat-card red"><div class="stat-value">${formatCurrency(d.totalEL)}</div><div class="stat-label">EL Surrender</div></div>
+    </div>`;
+    if (d.records?.length) {
+      html += `<div class="mb-3"><strong>${d.count} payment records in FY ${d.financialYear}</strong></div>`;
+      html += '<table class="data-table"><thead><tr><th>Employee</th><th>Scheme</th><th>District</th><th>Period</th><th>Honorarium</th><th>Maternity</th><th>Festival</th><th>EL</th><th>Total</th><th>Paid Date</th></tr></thead><tbody>';
+      d.records.forEach(r => html += `<tr><td>${escapeHtml(r.EmployeeName)} (${r.EmpID})</td><td>${escapeHtml(r.Scheme)}</td><td>${escapeHtml(r.District)}</td><td>${escapeHtml(r.Period)}</td><td>${formatCurrency(r.BasicSalary)}</td><td>${formatCurrency(r.MaternityPay)}</td><td>${formatCurrency(r.FestivalAllowance)}</td><td>${formatCurrency(r.ELSurrender)}</td><td><strong>${formatCurrency(r.TotalPaid)}</strong></td><td>${formatDateDisplay(r.PaidDate)}</td></tr>`);
+      html += '</tbody></table>';
+    } else {
+      html += `<div class="alert alert-info">No paid records found for FY ${d.financialYear}</div>`;
+    }
     resBody.innerHTML = html;
   }
 }

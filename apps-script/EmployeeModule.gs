@@ -158,10 +158,11 @@ function handleSuspendEmployee(data, session) {
   if (!canAccessEmployee(session, emp))
     return errorResponse('Unauthorized');
 
+  var relievingDate = data.date || now().split('T')[0];
   updateRow('Employees', emp._rowIndex, {
     Status: 'Suspended',
     SuspensionReason: sanitize(data.reason),
-    SuspensionDate: now(),
+    SuspensionDate: relievingDate,
     UpdatedBy: session.userId,
     UpdatedAt: now()
   });
@@ -221,16 +222,15 @@ function handleGetServiceReport(data, session) {
 
 
 function calculatePendingHonorariumForEmp(emp, revisions) {
-  if (emp.Status !== 'Active') return 0;
+  if (emp.Status !== 'Active' && emp.Status !== 'Suspended') return 0;
   if (!emp.DateOfFirstJoining) return 0;
 
   var joinDate = new Date(emp.DateOfFirstJoining);
   var lastPaid = emp.LastPaidDate ? new Date(emp.LastPaidDate) : null;
   if (lastPaid) {
-    // Treat as fully paid up to the end of that month
     lastPaid = new Date(lastPaid.getFullYear(), lastPaid.getMonth() + 1, 0);
   }
-  
+
   var startYear, startMonth;
   if (lastPaid) {
     startYear = lastPaid.getFullYear();
@@ -243,11 +243,16 @@ function calculatePendingHonorariumForEmp(emp, revisions) {
     startYear = joinDate.getFullYear();
     startMonth = joinDate.getMonth();
   }
-  
+
   var today = new Date();
-  var lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
-  var endYear = lastMonthEnd.getFullYear();
-  var endMonth = lastMonthEnd.getMonth();
+  var endDate;
+  if (emp.Status === 'Suspended' && emp.SuspensionDate) {
+    endDate = new Date(emp.SuspensionDate);
+  } else {
+    endDate = new Date(today.getFullYear(), today.getMonth(), 0);
+  }
+  var endYear = endDate.getFullYear();
+  var endMonth = endDate.getMonth();
 
   var totalPending = 0;
   var currentY = startYear;
@@ -256,17 +261,16 @@ function calculatePendingHonorariumForEmp(emp, revisions) {
   var empRevs = revisions.filter(function(r) {
     return r.Scheme === emp.Scheme && r.Designation === emp.Designation;
   });
-
   empRevs.sort(function(a, b) {
     return new Date(a.EffectiveFrom) - new Date(b.EffectiveFrom);
   });
 
   while (currentY < endYear || (currentY === endYear && currentM <= endMonth)) {
     var monthStr = currentY + '-' + padLeft(currentM + 1, 2);
-    
+
     var activeRate = parseFloat(emp.CurrentSalary) || 0;
     var monthEndDate = new Date(currentY, currentM + 1, 0);
-    
+
     var latestRev = null;
     for (var i = 0; i < empRevs.length; i++) {
       var revDate = new Date(empRevs[i].EffectiveFrom);
@@ -279,7 +283,24 @@ function calculatePendingHonorariumForEmp(emp, revisions) {
     }
 
     var monthlyOwed = activeRate;
+    var daysInMonth = monthEndDate.getDate();
 
+    // Prorate joining month
+    if (currentY === joinDate.getFullYear() && currentM === joinDate.getMonth() && joinDate.getDate() > 1) {
+      var daysWorked = daysInMonth - joinDate.getDate() + 1;
+      monthlyOwed = (activeRate / daysInMonth) * daysWorked;
+    }
+
+    // Prorate relieving month
+    if (emp.Status === 'Suspended' && emp.SuspensionDate) {
+      var relDate = new Date(emp.SuspensionDate);
+      if (currentY === relDate.getFullYear() && currentM === relDate.getMonth()) {
+        var daysWorkedRel = relDate.getDate();
+        monthlyOwed = (activeRate / daysInMonth) * daysWorkedRel;
+      }
+    }
+
+    // Partial payment deduction
     var matchesPartial = false;
     if (emp.PartialMonth) {
       var pDate = new Date(emp.PartialMonth);
@@ -300,7 +321,7 @@ function calculatePendingHonorariumForEmp(emp, revisions) {
       monthlyOwed = Math.max(0, monthlyOwed - partialPaid);
     }
 
-    totalPending += monthlyOwed;
+    totalPending += Math.round(monthlyOwed * 100) / 100;
 
     currentM++;
     if (currentM > 11) {

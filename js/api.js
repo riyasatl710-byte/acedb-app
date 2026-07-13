@@ -60,7 +60,7 @@ const API = {
   addEmployee(data) { return this.call('addEmployee', data); },
   editEmployee(data) { return this.call('editEmployee', data); },
   deleteEmployee(empId) { return this.call('deleteEmployee', { empId }); },
-  suspendEmployee(empId, reason) { return this.call('suspendEmployee', { empId, reason }); },
+  suspendEmployee(empId, reason, date) { return this.call('suspendEmployee', { empId, reason, date }); },
   revokeSuspension(empId) { return this.call('revokeSuspension', { empId }); },
 
   // Salary
@@ -111,6 +111,7 @@ const API = {
   getSchemes() { return this.call('getSchemes'); },
   addScheme(scheme) { return this.call('addScheme', { scheme }); },
   deleteScheme(scheme) { return this.call('deleteScheme', { scheme }); },
+  getOffices() { return this.call('getOffices'); },
 
   // Audit
   getAuditLog(filters = {}) { return this.call('getAuditLog', filters); }

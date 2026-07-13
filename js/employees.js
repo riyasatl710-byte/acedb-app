@@ -144,6 +144,8 @@ function showEditEmployeeModal(empId) {
   if (emp) showEmployeeForm(emp);
 }
 
+let empOfficesList = [];
+
 function showEmployeeForm(emp, defaultDistrict) {
   const isEdit = !!emp;
   const modal = document.getElementById('mainModal');
@@ -156,7 +158,7 @@ function showEmployeeForm(emp, defaultDistrict) {
       </div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">${t('district')} *</label><select class="form-select" id="empDist"></select></div>
-        <div class="form-group"><label class="form-label">${t('office')} *</label><input class="form-control" id="empOffice" value="${escapeHtml(emp?.Office||'')}"></div>
+        <div class="form-group"><label class="form-label">${t('office')} *</label><select class="form-select" id="empOffice"><option value="">-- Loading Offices --</option></select></div>
       </div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">Additional Attached Offices (Optional)</label><input class="form-control" id="empAdditionalOffices" placeholder="e.g. Block Office 1, Block Office 2" value="${escapeHtml(emp?.AdditionalOffices||'')}"></div>
@@ -199,6 +201,16 @@ function showEmployeeForm(emp, defaultDistrict) {
   empSchemes.forEach(s => { schemeSel.innerHTML += `<option value="${s}" ${s===emp?.Scheme?'selected':''}>${s}</option>`; });
 
   showModal('mainModal');
+
+  // Populate office dropdown
+  API.getOffices().then(res => {
+    const officeSel = document.getElementById('empOffice');
+    if (officeSel && res.success) {
+      empOfficesList = res.data;
+      officeSel.innerHTML = '<option value="">-- Select Office --</option>';
+      res.data.forEach(o => { officeSel.innerHTML += `<option value="${o}" ${o === (emp?.Office || '') ? 'selected' : ''}>${o}</option>`; });
+    }
+  });
 }
 
 async function saveEmployee(empId) {
@@ -268,11 +280,49 @@ async function viewEmployee(empId) {
 }
 
 async function promptSuspend(empId) {
-  const reason = prompt(t('suspension_reason') + ':');
-  if (!reason) return;
-  const result = await API.suspendEmployee(empId, reason);
-  if (result.success) { showToast(result.message, 'success'); loadEmployees(); }
-  else showToast(result.error, 'error');
+  const emp = allEmployees.find(e => e.EmpID === empId);
+  const empName = emp ? emp.EmployeeName : empId;
+  const today = new Date().toISOString().split('T')[0];
+
+  const modal = document.getElementById('mainModal');
+  modal.innerHTML = `<div class="modal">
+    <div class="modal-header">
+      <h3>Relieve / Disable Employee</h3>
+      <button class="modal-close" onclick="hideModal('mainModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:var(--bg-light);padding:12px;border-radius:6px;margin-bottom:16px">
+        <strong>${escapeHtml(empName)}</strong> (${escapeHtml(empId)})
+      </div>
+      <div class="form-group">
+        <label class="form-label">Relieving Date *</label>
+        <input type="date" class="form-control" id="relieveDate" value="${today}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Reason *</label>
+        <input class="form-control" id="relieveReason" placeholder="Enter reason for relieving">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="hideModal('mainModal')">${t('cancel')}</button>
+      <button class="btn btn-danger" onclick="confirmRelieve('${empId}')">Relieve Employee</button>
+    </div>
+  </div>`;
+  showModal('mainModal');
+}
+
+async function confirmRelieve(empId) {
+  const date = document.getElementById('relieveDate').value;
+  const reason = document.getElementById('relieveReason').value;
+  if (!reason) { showToast('Reason is required', 'warning'); return; }
+  if (!date) { showToast('Relieving date is required', 'warning'); return; }
+
+  const result = await API.suspendEmployee(empId, reason, date);
+  if (result.success) {
+    showToast(result.message || 'Employee relieved', 'success');
+    hideModal('mainModal');
+    loadEmployees();
+  } else showToast(result.error, 'error');
 }
 
 async function doRevokeSuspension(empId) {

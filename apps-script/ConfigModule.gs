@@ -97,3 +97,15 @@ function handleGetFeatureLocks(data, session) {
   };
   return successResponse(locks, 'Feature locks retrieved');
 }
+
+function handleGetOffices(data, session) {
+  var val = getConfigValue('OFFICES');
+  if (!val) {
+    // Self-heal: create default offices list
+    var defaultOffices = 'ADA Adimaly,ADA Aryancode,ADA Idukki,ADA Trivandrum';
+    appendRow_('Config', { Key: 'OFFICES', Value: defaultOffices, Description: 'List of offices' });
+    val = defaultOffices;
+  }
+  var offices = val.split(',').map(function(o) { return o.trim(); }).filter(function(o) { return o !== ''; });
+  return successResponse(offices, 'Offices retrieved');
+}

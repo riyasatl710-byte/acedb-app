@@ -119,6 +119,8 @@ function handleGenerateReport(data, session) {
       return handleGetServiceReport(data, session);
     case 'leaveReport':
       return generateLeaveReport(data, session);
+    case 'paidExpenditure':
+      return generatePaidExpenditureReport(data, session);
     default:
       return errorResponse('Invalid report type');
   }
@@ -262,4 +264,81 @@ function handleExportReport(data, session) {
   });
 
   return successResponse({ csv: csv, filename: data.reportType + '_' + now().split('T')[0] + '.csv' }, 'Export ready');
+}
+
+function generatePaidExpenditureReport(data, session) {
+  var targetFY = data.financialYear;
+  if (!targetFY) return errorResponse('Financial Year is required');
+
+  var salaries = readAllRows('Salary_History');
+  if (['SuperAdmin','ITAdmin','Viewer'].indexOf(session.role) === -1) {
+    var empRows = readAllRows('Employees');
+    var myEmpIds = {};
+    empRows.forEach(function(e) { if (canAccessEmployee(session, e)) myEmpIds[e.EmpID] = true; });
+    salaries = salaries.filter(function(r) { return myEmpIds[r.EmpID]; });
+  }
+
+  // Parse target FY e.g. "2026-27" -> start April 2026, end March 2027
+  var fyParts = targetFY.split('-');
+  var fyStartYear = parseInt(fyParts[0]);
+  var fyEndYear = fyStartYear + 1;
+  var fyStart = new Date(fyStartYear, 3, 1); // April 1
+  var fyEnd = new Date(fyEndYear, 2, 31, 23, 59, 59); // March 31
+
+  var paidRecords = salaries.filter(function(r) {
+    if (r.PaymentStatus !== 'Paid') return false;
+    var pd = r.PaidDate ? new Date(r.PaidDate) : (r.CreatedAt ? new Date(r.CreatedAt) : null);
+    if (!pd || isNaN(pd.getTime())) return false;
+    return pd >= fyStart && pd <= fyEnd;
+  });
+
+  var totalBasic = 0, totalMaternity = 0, totalFestival = 0, totalEL = 0, grandTotal = 0;
+  var records = [];
+
+  // Get employee name lookup
+  var empLookup = {};
+  var allEmps = readAllRows('Employees');
+  allEmps.forEach(function(e) { empLookup[e.EmpID] = e; });
+
+  paidRecords.forEach(function(r) {
+    var basic = parseFloat(r.BasicSalary) || 0;
+    var mat = parseFloat(r.MaternityPay) || 0;
+    var fest = parseFloat(r.FestivalAllowance) || 0;
+    var el = parseFloat(r.ELSurrender) || 0;
+    var total = parseFloat(r.TotalPaid) || 0;
+
+    totalBasic += basic;
+    totalMaternity += mat;
+    totalFestival += fest;
+    totalEL += el;
+    grandTotal += total;
+
+    var emp = empLookup[r.EmpID] || {};
+    records.push({
+      RecordID: r.RecordID,
+      EmpID: r.EmpID,
+      EmployeeName: emp.EmployeeName || r.EmpID,
+      Scheme: emp.Scheme || '',
+      District: emp.District || '',
+      Period: r.Month || '',
+      BasicSalary: basic,
+      MaternityPay: mat,
+      FestivalAllowance: fest,
+      ELSurrender: el,
+      TotalPaid: total,
+      PaidDate: r.PaidDate || '',
+      Remarks: r.Remarks || ''
+    });
+  });
+
+  return successResponse({
+    financialYear: targetFY,
+    totalBasic: totalBasic,
+    totalMaternity: totalMaternity,
+    totalFestival: totalFestival,
+    totalEL: totalEL,
+    grandTotal: grandTotal,
+    records: records,
+    count: records.length
+  }, 'Paid expenditure report for FY ' + targetFY);
 }
